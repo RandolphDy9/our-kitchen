@@ -303,7 +303,7 @@ export function EventPage({ e }: { e: EventDoc }) {
           <PulseCard />
           <section className="card"><div className="sec-head"><h2>Arrivals by category</h2><button className="link" onClick={() => set({ tab: "players" })}>See all</button></div><Cats /></section>
           <RxEditor key={get().eventId || ""} />
-          <DeleteEventCard key={e.id} e={e} />
+          <DeleteEventCard key={"del-" + e.id} e={e} />
         </div>
       </div>
     </div>
