@@ -666,3 +666,24 @@ body::before{display:none}
 /* Club screen */
 .grid-form{display:grid;gap:10px}
 .pick button[aria-current="true"]{background:var(--lime)}
+
+/* Welcome to Qsina (after check-in) */
+.welcome{padding:0;gap:0;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+.welcome header{background:var(--ink);color:var(--on-black);padding:22px 18px 20px;display:grid;gap:8px}
+.welcome .eyebrow{color:var(--lime);text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:700}
+.welcome h2{font-size:clamp(1.7rem,7vw,2.2rem)}
+.welcome mark{background:var(--lime);color:var(--ink);padding:0 .18em}
+.welcome header p{color:#d6d6d0;font-size:.95rem;max-width:52ch}
+.welcome ol{list-style:none;margin:0;padding:6px 18px 10px;counter-reset:ws}
+.welcome li{counter-increment:ws;display:grid;grid-template-columns:48px minmax(0,1fr);gap:14px;align-items:start;padding:14px 0}
+.welcome li + li{border-top:1.5px dashed var(--soft)}
+.ws-ic{position:relative;width:48px;height:48px;display:grid;place-items:center;background:var(--lime);border:var(--b);box-shadow:3px 3px 0 var(--ink)}
+.ws-ic svg.i{width:22px;height:22px;stroke-width:2.2}
+.ws-ic::after{content:counter(ws);position:absolute;top:-9px;left:-9px;width:20px;height:20px;display:grid;place-items:center;background:var(--ink);color:var(--lime);font-family:var(--f-display);font-size:.72rem}
+.welcome li p{font-size:.92rem;color:var(--muted)}
+.welcome li b{display:block;color:var(--ink);font-family:var(--f-display);text-transform:uppercase;font-size:1.05rem;letter-spacing:.02em;margin-bottom:2px}
+@media (prefers-reduced-motion:no-preference){
+  .welcome li{animation:wsIn .45s ease-out both}
+  .welcome li:nth-child(2){animation-delay:.08s}.welcome li:nth-child(3){animation-delay:.16s}.welcome li:nth-child(4){animation-delay:.24s}
+  @keyframes wsIn{from{opacity:0;transform:translateY(8px)}}
+}

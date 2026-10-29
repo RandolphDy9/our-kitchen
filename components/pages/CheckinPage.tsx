@@ -102,6 +102,19 @@ export function CheckedInPage() {
         <p className="muted">The organizer can see you&apos;ve arrived. Watch the Courts tab for your matchup.</p>
         <button className="btn dark" onClick={() => { set({ ciJustDone: false, tab: "courts" }); window.scrollTo(0, 0); }}>See the courts</button>
       </section>
+      <section className="card welcome" aria-labelledby="welcome-h">
+        <header>
+          <span className="eyebrow">New here?</span>
+          <h2 id="welcome-h">Welcome to <mark>Qsina</mark></h2>
+          <p>Open play, run from your phone. Qsina lines up fair games for everyone and tells you when you&apos;re on, so there&apos;s no sign-up sheet to crowd around.</p>
+        </header>
+        <ol>
+          <li><span className="ws-ic"><Icon n="bell" /></span><p><b>Get called up</b>Keep Qsina open. When it&apos;s your turn, it shows your court and who you&apos;re playing with.</p></li>
+          <li><span className="ws-ic"><Icon n="grid" /></span><p><b>Play your game</b>Head to your court. Scores post as games finish, then you&apos;re back in the queue.</p></li>
+          <li><span className="ws-ic"><Icon n="users" /></span><p><b>Hype your crew</b>Cheer on other players and share photos from the night.</p></li>
+          <li><span className="ws-ic"><Icon n="trophy" /></span><p><b>Chase the playoffs</b>Follow the standings and the bracket as the night goes on.</p></li>
+        </ol>
+      </section>
     </div>
   );
 }
