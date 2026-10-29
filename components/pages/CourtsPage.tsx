@@ -5,10 +5,11 @@ import {
   CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, first, fmtTime, gamesPlayed, isAdminView, isMineSched, kudosTotal,
   live, me, pName, poolTable, qualCount, rLabel, refText, scTxt, schedLocked, schedSides, standings, teamName, todayISO, wonBy,
 } from "@/lib/model";
-import { recordSched, saveResult, startSched, testAlert, undoSched } from "@/lib/actions";
+import { recordSched, saveResult, showMoveCode, startSched, testAlert, undoSched } from "@/lib/actions";
 import { alertPrefs, applyWake, chime, notifySupported, primeAudio, requestNotify, wakeSupported } from "@/lib/alerts";
 import type { Match, Sched } from "@/lib/types";
 import { ArtCourt, ArtPaddle, Av, CatOnly, Icon, Tally, numOrNull } from "../ui";
+import { Select } from "../Select";
 import { useTick } from "../widgets";
 import { Road } from "./BracketPage";
 
@@ -56,6 +57,7 @@ function MyBanner() {
           </div>
           <Tally pid={m.id} />
           <button className="btn dark block" style={{ marginTop: 8 }} onClick={() => set({ tab: "people" })}>Hype a player</button>
+          <MoveCode />
         </section>
       </div>
     </div>
@@ -100,9 +102,9 @@ function AlertsCard() {
   return (
     <section className="card alerts">
       <div className="sec-head"><h2>Game alerts</h2><span className="pill"><Icon n="bell" />On</span></div>
-      <p className="small">When an organizer starts your game, this screen flashes <b>“You&apos;re up!”</b> with your court, {p.sound ? "plays a chime" : "stays silent"} and vibrates. Keep OurKitchen open during the event to get alerts.</p>
+      <p className="small">When an organizer starts your game, this screen flashes <b>“You&apos;re up!”</b> with your court, {p.sound ? "plays a chime" : "stays silent"} and vibrates. Keep Qsina open during the event to get alerts.</p>
       <label className="check"><input type="checkbox" checked={p.sound} onChange={(e) => { upd("sound", e.target.checked); if (e.target.checked) { primeAudio(); chime(); } }} /> Play a sound</label>
-      {wakeSupported() ? <label className="check"><input type="checkbox" checked={p.wake} onChange={(e) => { upd("wake", e.target.checked); applyWake(e.target.checked); toast(e.target.checked ? "Your screen will stay on while OurKitchen is open" : "Screen can sleep again"); }} /> Keep my screen on while the app is open</label> : null}
+      {wakeSupported() ? <label className="check"><input type="checkbox" checked={p.wake} onChange={(e) => { upd("wake", e.target.checked); applyWake(e.target.checked); toast(e.target.checked ? "Your screen will stay on while Qsina is open" : "Screen can sleep again"); }} /> Keep my screen on while the app is open</label> : null}
       {notifySupported() ? <label className="check"><input type="checkbox" checked={p.notify} onChange={async (e) => {
         const on = e.target.checked && (await requestNotify());
         upd("notify", on);
@@ -167,6 +169,20 @@ function Board() {
   })}</>;
 }
 
+/** Shows the code that moves this check-in to another app or phone (on iPhone, the Home Screen app). */
+function MoveCode() {
+  const [code, setCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (code) return (
+    <div className="move-code" role="status">
+      <span>Your move code</span><b className="num">{code}</b>
+      <p className="small">Open Qsina in the other app or phone, pick your name and enter this code. It works for 10 minutes.</p>
+      <button className="btn sm ghost" onClick={() => setCode(null)}>Done</button>
+    </div>
+  );
+  return <button className="btn sm ghost" disabled={busy} onClick={async () => { setBusy(true); setCode(await showMoveCode()); setBusy(false); }}>Move my check-in</button>;
+}
+
 function Queue() {
   const S = useApp(), gp = gamesPlayed(S), b = busy(S);
   const q = S.players.filter((p) => p.checkedIn && !b.has(p.id)).sort((a, c) => (gp[a.id] || 0) - (gp[c.id] || 0) || a.name.localeCompare(c.name));
@@ -196,9 +212,9 @@ function SRow({ x }: { x: Sched }) {
   };
   return (
     <div className={`srow ${mine ? "me" : ""} ${x.res ? "done" : ""} ${x.live ? "live" : ""}`}>
-      <span className="sct"><small>Court</small>{x.court}{cn ? <i>{cn}</i> : null}</span>
+      <span className="sct"><small>Court</small>{x.court}</span>
       <div className="sbody">
-        <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span><span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
+        <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
         {admin && S.sScoring === x.id && A && B ? (
           <div className="sform">
@@ -230,21 +246,38 @@ function Schedule() {
   }
   const today = ev(S)?.date === todayISO(), d = new Date(), nowM = d.getHours() * 60 + d.getMinutes();
   const mins = (t: string) => { const [h, mm] = t.split(":").map(Number); return h * 60 + mm; };
+  // Accordion: the first slot that isn't finished (and the one after it) open by default, plus any slot with a live game.
+  // A short list (a filter, "My games") just stays open. Taps override the defaults per slot,
+  // and are remembered on this device for the event, so switching tabs or reloading keeps them.
+  const slotKey = "slots." + (S.eventId || "");
+  const [open, setOpen] = useState<Record<number, boolean>>(() => ls.get(slotKey, {}));
+  const toggle = (slot: number, to: boolean) => setOpen((o) => { const n = { ...o, [slot]: to }; ls.set(slotKey, n); return n; });
+  const unfinished = groups.findIndex((g) => g.items.some((x) => !x.res));
+  const focus = unfinished < 0 ? groups.length - 1 : unfinished, showAll = list.length <= 12;
   return (
     <div className="view" style={{ gap: 16 }}>
       <div className="field"><label htmlFor="sdiv">Show</label>
-        <select id="sdiv" value={dsel} onChange={(e) => set({ sdiv: e.target.value })}>
-          <option value="all">All divisions</option>
-          {!admin && m ? <option value="mine">My games</option> : null}
-          {S.divs.map((dv) => <option key={dv.id} value={dv.id}>{divName(dv)}</option>)}
-        </select>
+        <Select id="sdiv" value={dsel} onChange={(v) => set({ sdiv: v })} options={[
+          ["all", "All divisions"], ...(!admin && m ? [["mine", "My games"] as const] : []), ...S.divs.map((dv) => [dv.id, divName(dv)] as const)]} />
       </div>
-      {groups.length ? groups.map((g) => {
-        const st = today ? (nowM >= mins(g.end) ? "past" : nowM >= mins(g.time) ? "now" : "") : "";
+      {groups.length ? groups.map((g, gi) => {
+        const n = g.items.length, fin = g.items.filter((x) => x.res).length, lv = g.items.filter((x) => x.live && !x.res).length;
+        const st = today ? (nowM >= mins(g.end) ? (lv ? "" : "past") : nowM >= mins(g.time) ? "now" : "") : "";
+        const mine = g.items.filter((x) => isMineSched(S, x));
+        const isOpen = g.items.some((x) => x.id === S.sScoring) || (open[g.slot] ?? (showAll || lv > 0 || st === "now" || gi === focus || gi === focus + 1));
+        const sum = fin === n ? `All ${n} final` : [`${n} game${n > 1 ? "s" : ""}`, lv ? `${lv} live` : "", fin ? `${fin} final` : ""].filter(Boolean).join(" · ");
+        const bodyId = `slot-${g.slot}`;
         return (
-          <section className={`tslot ${st}`} key={g.slot}>
-            <div className="tslot-h"><b>{fmtTime(g.time)}</b><span>to {fmtTime(g.end)}</span>{st === "now" ? <span className="pill dark">Now</span> : null}</div>
-            <div className="tslot-list">{g.items.map((x) => <SRow key={x.id} x={x} />)}</div>
+          <section className={`tslot ${st} ${isOpen ? "open" : ""}`} key={g.slot}>
+            <button type="button" className="tslot-h" aria-expanded={isOpen} aria-controls={bodyId} onClick={() => toggle(g.slot, !isOpen)}>
+              <span className="tslot-t">
+                <span className="tslot-time"><b>{fmtTime(g.time)}</b><span>to {fmtTime(g.end)}</span>{st === "now" ? <span className="pill dark">Now</span> : null}</span>
+                <span className="tslot-sum">{lv ? <span className="dot live" /> : null}{sum}
+                  {mine.length ? <span className="pill">You · Court {mine.map((x) => x.court).join(", ")}</span> : null}</span>
+              </span>
+              <Icon n="chev" />
+            </button>
+            {isOpen ? <div className="tslot-list" id={bodyId}>{g.items.map((x) => <SRow key={x.id} x={x} />)}</div> : null}
           </section>
         );
       }) : <div className="empty">{dsel === "mine" ? "No games for you in the schedule yet." : "No games match this filter."}</div>}

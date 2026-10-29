@@ -19,6 +19,7 @@ const ICON = {
   image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
   flag: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
   qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -59,9 +60,18 @@ export function Tally({ pid }: { pid: string }) {
   return <span className="kudos">{parts.map((r) => <span key={r.id} title={r.label}>{t[r.id]}{r.emoji}</span>)}</span>;
 }
 
-export const Logo = () => (
-  <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#f6b90a" stroke="#121212" strokeWidth="2.4" /><path d="M5 25c9-1 20-7 30-15" fill="none" stroke="#121212" strokeWidth="2.4" strokeLinecap="round" /><g fill="#121212"><circle cx="13" cy="13" r="2.3" /><circle cx="22" cy="10" r="2.3" /><circle cx="27" cy="22" r="2.3" /><circle cx="18" cy="29" r="2.3" /><circle cx="11" cy="21" r="1.8" /></g></svg>
+/** Why the app is called Qsina. Shown where players first meet the app. */
+export const NameStory = () => (
+  <details className="card story" open>
+    <summary><span>Why Qsina?<small>koo-SEE-nah</small></span></summary>
+    <ol>
+      <li><b>Q</b><p><strong>Q is for queue</strong>Qsina lines up every game and calls you to your court when it&apos;s your turn, so nobody has to crowd around a printed sheet.</p></li>
+      <li><b>sina</b><p><strong>Sina is for the players</strong>In Filipino, <em>sina</em> comes before a group of names, as in <em>sina Joy at Ana</em>. So <em>Q sina Joy at Ana</em> means &ldquo;queue up Joy and Ana.&rdquo;</p></li>
+      <li><b>Kusina</b><p><strong>Say it out loud</strong>Qsina sounds like <em>kusina</em>, Filipino for kitchen: the no-volley zone every pickleball player knows, and the room where everyone gathers.</p></li>
+    </ol>
+  </details>
 );
+
 
 export const ArtPaddle = () => (
   <svg className="boost-art" viewBox="0 0 160 160" aria-hidden="true"><g transform="rotate(-28 80 80)"><ellipse cx="78" cy="62" rx="42" ry="50" fill="#121212" /><ellipse cx="78" cy="62" rx="30" ry="37" fill="none" stroke="#f6b90a" strokeWidth="1.5" strokeDasharray="3 6" /><rect x="70" y="108" width="16" height="46" rx="6" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /></g><circle cx="122" cy="118" r="24" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><g fill="#121212"><circle cx="113" cy="110" r="3" /><circle cx="126" cy="106" r="3" /><circle cx="120" cy="121" r="3" /><circle cx="133" cy="124" r="3" /><circle cx="112" cy="128" r="3" /></g></svg>

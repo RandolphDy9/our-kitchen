@@ -8,6 +8,7 @@ import {
 import { bkDelete, bkSendCourt, bkStart, bkUndo, recordPlayoff, recordSched, startSched, undoSched } from "@/lib/actions";
 import type { Bracket, Cat, Level, Ref } from "@/lib/types";
 import { Av, Icon, TrophyArt, numOrNull } from "../ui";
+import { Select } from "../Select";
 
 export function Road() {
   const S = useApp(), m = me(S);
@@ -166,7 +167,7 @@ function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel:
       {m.live ? <p><span className="pill dark">On Court {m.live.court} now</span></p> : <>
         <div className="row">
           <div className="field" style={{ flex: "0 1 140px" }}><label htmlFor="bk-court">Court</label>
-            <select id="bk-court" value={cv} onChange={(e) => setCourt(e.target.value)}>{free.map((c) => <option key={c} value={c}>Court {c}</option>)}</select></div>
+            <Select id="bk-court" value={cv} onChange={setCourt} options={free.map((c) => [String(c), `Court ${c}`] as const)} /></div>
           <button className="btn sm" disabled={!free.length} onClick={() => (br.virtual ? startSched(sid!, cv) : bkSendCourt(id, +cv))}>Send to court</button>
         </div>
         {free.length ? null : <p className="small muted">Every court is busy right now.</p>}
@@ -209,9 +210,7 @@ function Builder({ onDone }: { onDone: () => void }) {
     setDraft({ ...g, teams });
   };
   const sel = <K extends keyof Cfg>(id: string, k: K, opts: [string | number, string][]) => (
-    <select id={id} value={String(g[k])} onChange={(e) => setG({ ...g, [k]: k === "size" ? +e.target.value : e.target.value })}>
-      {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </select>
+    <Select id={id} value={String(g[k])} onChange={(v) => setG({ ...g, [k]: k === "size" ? +v : v })} options={opts} />
   );
   const pool = draft ? rankPlayers(S, eligible(S, draft.cat, draft.lvl, draft.inOnly)) : [];
   return (
@@ -230,14 +229,11 @@ function Builder({ onDone }: { onDone: () => void }) {
         <div className="draft">{draft.teams.map((t, i) => (
           <div className="draft-row" key={i}><span className="seed">{i + 1}</span>
             {[0, 1].map((j) => (
-              <select key={j} aria-label={`Seed ${i + 1} player ${j + 1}`} value={t[j] || ""} onChange={(e) => {
+              <Select key={j} aria-label={`Seed ${i + 1} player ${j + 1}`} value={t[j] || ""} placeholder="Pick a player" onChange={(v) => {
                 const teams = draft.teams.map((x) => [...x]);
-                teams[i][j] = e.target.value;
+                teams[i][j] = v;
                 setDraft({ ...draft, teams });
-              }}>
-                <option value="">Pick a player</option>
-                {pool.filter((p) => draft.cat !== "mixed" || (j === 0 ? p.gender === "M" : p.gender === "F")).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              }} options={pool.filter((p) => draft.cat !== "mixed" || (j === 0 ? p.gender === "M" : p.gender === "F")).map((p) => [p.id, p.name] as const)} />
             ))}
           </div>
         ))}</div>

@@ -2,9 +2,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp, set } from "@/lib/store";
 import { actorId, actorName, anyP, ev, fmtClock, isAdminView, me, pById, pName, photoSrc } from "@/lib/model";
-import { delComment, delPhoto, downloadPhoto, postComment, toggleHeart, uploadPhotos } from "@/lib/actions";
+import {
+  canShareFiles, delComment, delPhoto, downloadPhoto, fetchPhotoFiles, markSaved, photoNames, postComment, savedPhotos, sharePhotoFiles,
+  toggleHeart, uploadPhotos, zipPhotoFiles, type PhotoFile,
+} from "@/lib/actions";
 import type { Photo } from "@/lib/types";
 import { Av, Icon } from "../ui";
+import { Select } from "../Select";
 
 function PhMeta({ p }: { p: Photo }) {
   const S = useApp();
@@ -13,11 +17,95 @@ function PhMeta({ p }: { p: Photo }) {
   return <span className="ph-meta">{h ? <b><Icon n="heart" />{h}</b> : null}{c ? <b><Icon n="chat" />{c}</b> : null}</span>;
 }
 
+const BATCH = 20;
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+/** Save many photos at once. Phones: the share sheet in batches of 20 (a share has to follow a tap closely,
+    and hundreds of photos at once can run a phone out of memory). Computers: one .zip. */
+function SavePhotos() {
+  const S = useApp();
+  const [who, setWho] = useState("all");
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+  const [phase, setPhase] = useState<"idle" | "fetching" | "ready" | "zipping">("idle");
+  const [prog, setProg] = useState(0);
+  const [ready, setReady] = useState<PhotoFile[]>([]);
+  const [note, setNote] = useState("");
+  const [phone] = useState(canShareFiles);
+  const [saved, setSaved] = useState(savedPhotos);
+  const all = [...S.photos].sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
+    .filter((p) => (who === "all" || p.playerId === who) && (!onlyNew || !saved.has(p.id)));
+  const left = all.filter((p) => !doneIds.has(p.id)), batch = left.slice(0, BATCH);
+  const names = photoNames(all);
+  const counts = S.photos.reduce<Record<string, number>>((o, p) => ({ ...o, [p.playerId]: (o[p.playerId] || 0) + 1 }), {});
+  const busy = phase === "fetching" || phase === "zipping";
+  const reset = () => { setDoneIds(new Set()); setReady([]); setPhase("idle"); setNote(""); setSaved(savedPhotos()); };
+
+  const getBatch = async (list = batch, lead = "") => {
+    setPhase("fetching");
+    setProg(0);
+    const { files, failed } = await fetchPhotoFiles(list, names, setProg);
+    setReady(files);
+    setPhase(files.length ? "ready" : "idle");
+    setNote(lead + (failed ? `${plural(failed, "photo")} couldn't be downloaded and ${failed === 1 ? "was" : "were"} skipped.` : ""));
+  };
+  const saveBatch = async () => {
+    if (!(await sharePhotoFiles(ready))) return;
+    const ids = ready.map((f) => f.id), next = new Set([...doneIds, ...ids]);
+    markSaved(ids);
+    setDoneIds(next);
+    setReady([]);
+    const rest = all.filter((p) => !next.has(p.id));
+    if (!rest.length) { setPhase("idle"); setNote(`All ${plural(all.length, "photo")} saved.`); return; }
+    const lead = `Saved ${next.size} of ${all.length}. `;
+    setNote(lead + "Getting the next ones…");
+    getBatch(rest.slice(0, BATCH), lead);
+  };
+  const zipAll = async () => {
+    setPhase("fetching");
+    setProg(0);
+    const { files, failed } = await fetchPhotoFiles(left, names, setProg);
+    if (!files.length) { setPhase("idle"); setNote("Couldn't download the photos. Try again in a moment."); return; }
+    setPhase("zipping");
+    const tag = who === "all" ? "photos" : (names[left[0].id] || "photos").replace(/^qsina-|-\d+$/g, "");
+    await zipPhotoFiles(files, `qsina-${tag}.zip`);
+    markSaved(files.map((f) => f.id));
+    setPhase("idle");
+    setNote(`Downloaded ${plural(files.length, "photo")}.` + (failed ? ` ${failed} couldn't be downloaded.` : ""));
+  };
+
+  const from = all.length - left.length + 1, to = from + batch.length - 1;
+  let action;
+  if (!left.length) action = null;
+  else if (!phone) action = <button className="btn dark block" disabled={busy} onClick={zipAll}>{phase === "zipping" ? "Making the .zip…" : phase === "fetching" ? `Getting ${prog} of ${left.length}…` : `Download ${plural(left.length, "photo")} (.zip)`}</button>;
+  else if (phase === "ready") action = <>
+    <button className="btn dark block" onClick={saveBatch}>Save {plural(ready.length, "photo")}</button>
+    <p className="small muted">On iPhone, tap <b>Save {ready.length} Images</b>. On Android, tap <b>Save</b> or <b>Photos</b>.</p>
+  </>;
+  else action = <button className="btn dark block" disabled={busy} onClick={() => getBatch()}>
+    {phase === "fetching" ? `Getting ${prog} of ${batch.length}…` : all.length > BATCH ? `Get photos ${from}–${to} of ${all.length}` : `Get ${plural(batch.length, "photo")}`}</button>;
+
+  return (
+    <section className="card saveall">
+      <div className="field"><label htmlFor="sv-who">Photos of</label>
+        <Select id="sv-who" value={who} onChange={(v) => { setWho(v); reset(); }} options={[
+          ["all", `Everyone (${S.photos.length})`],
+          ...S.players.filter((p) => counts[p.id]).sort((a, b) => a.name.localeCompare(b.name)).map((p) => [p.id, `${p.name} (${counts[p.id]})`] as const)]} />
+      </div>
+      <label className="check"><input type="checkbox" checked={onlyNew} onChange={(x) => { setOnlyNew(x.target.checked); reset(); }} /> Only photos I haven&apos;t saved yet</label>
+      {all.length ? null : <p className="small muted">{onlyNew ? "You've saved all of these already." : "No photos here yet."}</p>}
+      {action}
+      {note ? <p className="small" role="status">{note}</p> : null}
+    </section>
+  );
+}
+
 export function PhotosPage() {
   const S = useApp();
   const m = me(S), admin = isAdminView(S);
   const [who, setWho] = useState(admin ? "" : m?.id || "");
   const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
   const n = who ? S.photos.filter((p) => p.playerId === who).length : 0, off = !who || n >= 5;
   const ph = [...S.photos].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   return (
@@ -26,10 +114,8 @@ export function PhotosPage() {
         <div className="sec-head"><h2>Your photos</h2><span className="small" style={{ opacity: 0.75 }}>Up to 5 each</span></div>
         {admin ? (
           <div className="field"><label htmlFor="ph-who">Uploading for</label>
-            <select id="ph-who" value={who} onChange={(e) => setWho(e.target.value)}>
-              <option value="">Pick a player</option>
-              {[...S.players].sort((a, b) => a.name.localeCompare(b.name)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select id="ph-who" value={who} onChange={setWho} placeholder="Pick a player"
+              options={[...S.players].sort((a, b) => a.name.localeCompare(b.name)).map((p) => [p.id, p.name] as const)} />
           </div>
         ) : null}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -40,12 +126,15 @@ export function PhotosPage() {
         <p className="small" role="status">{msg}</p>
         {S.mode === "local" ? <p className="small muted">Demo mode keeps photos on this device only.</p> : null}
       </section>
-      <div className="sec-head"><h2>Event gallery</h2><span className="small muted">{S.photos.length} photos</span></div>
+      <div className="sec-head"><h2>Event gallery</h2>
+        {S.photos.length ? <button className="btn sm" aria-expanded={saving} onClick={() => setSaving(!saving)}><Icon n="download" />{saving ? "Close" : "Save photos"}</button>
+          : <span className="small muted">0 photos</span>}</div>
+      {saving && S.photos.length ? <SavePhotos /> : null}
       <div className="gallery">
         {ph.length ? ph.map((p) => (
           <button key={p.id} className="ph" onClick={() => set({ viewPhoto: p.id })} aria-label={`Photo by ${pName(S, p.playerId)}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photoSrc(p)} alt="" loading="lazy" /><span>{pName(S, p.playerId)}</span><PhMeta p={p} />
+            {photoSrc(S, p) ? <img src={photoSrc(S, p)} alt="" loading="lazy" /> : null}<span>{pName(S, p.playerId)}</span><PhMeta p={p} />
           </button>
         )) : <div className="empty" style={{ gridColumn: "1/-1" }}><span className="sq"><Icon n="image" /></span><p>No photos yet. Everyone&apos;s shots from today land here. Tap any photo to heart it, comment or download it.</p></div>}
       </div>
@@ -81,7 +170,7 @@ export function Lightbox() {
     <div className="lightbox" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="viewer" role="dialog" aria-modal="true" aria-label={`Photo by ${owner.name}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <div className="viewer-img"><img src={photoSrc(p)} alt={`Photo by ${owner.name}`} /></div>
+        <div className="viewer-img">{photoSrc(S, p) ? <img src={photoSrc(S, p)} alt={`Photo by ${owner.name}`} /> : null}</div>
         <div className="viewer-side">
           <div className="vhead"><Av p={owner} /><div className="who"><b>{owner.name}</b><span>{fmtClock(p.createdAt)} · {ev(S)?.name || ""}</span></div><button className="close-x" onClick={close} aria-label="Close">✕</button></div>
           <div className="vacts">
