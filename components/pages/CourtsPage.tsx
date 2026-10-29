@@ -170,7 +170,7 @@ function Board() {
 }
 
 /** Shows the code that moves this check-in to another app or phone (on iPhone, the Home Screen app). */
-function MoveCode() {
+export function MoveCode() {
   const [code, setCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (code) return (

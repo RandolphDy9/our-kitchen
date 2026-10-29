@@ -6,11 +6,11 @@ import { boot, joinByCode, switchClub } from "@/lib/session";
 import { organizerSignIn } from "@/lib/actions";
 import { alertPrefs, applyWake, primeAudio } from "@/lib/alerts";
 import { Icon, NameStory, type IconName } from "./ui";
-import { InstallPrompt } from "./InstallPrompt";
+import { GetTheApp, InstallPrompt, useMustInstall } from "./InstallPrompt";
 import { Overlays } from "./Overlays";
 import { EventPage } from "./pages/EventPage";
 import { PeoplePage, PlayersPage } from "./pages/PlayersPage";
-import { CourtsPage } from "./pages/CourtsPage";
+import { CourtsPage, MoveCode } from "./pages/CourtsPage";
 import { BracketPage } from "./pages/BracketPage";
 import { ResultsPage } from "./pages/ResultsPage";
 import { Lightbox, PhotosPage } from "./pages/PhotosPage";
@@ -70,7 +70,7 @@ function EventCode() {
 }
 
 function Page() {
-  const S = useApp();
+  const S = useApp(), mustInstall = useMustInstall();
   if (S.signingIn && !S.unlocked) return <SignInPage />;
   if (S.team) return <TeamPage />;
   if (S.creating) return <CreateEventPage />;
@@ -88,6 +88,17 @@ function Page() {
         {S.unlocked ? null : <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>}
         {S.mode === "local" ? <p className="mode-note">Demo mode: data stays in this browser. Sign in as organizer to create an event.</p> : null}
       </div>
+    );
+  }
+  if (!S.unlocked) {
+    if (mustInstall === null) return null;
+    if (mustInstall) return (
+      <>
+        <GetTheApp e={e} ios={me(S) ? (
+          <section className="card"><p className="small"><b>Already checked in on this browser?</b> Get a code here, then open the app, pick your name and enter it.</p><MoveCode /></section>
+        ) : null} />
+        <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>
+      </>
     );
   }
   if (!admin && !me(S)) return <CheckinPage e={e} />;

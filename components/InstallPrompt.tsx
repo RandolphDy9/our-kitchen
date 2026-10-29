@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ls } from "@/lib/store";
+import { fmtDate, fmtTime } from "@/lib/model";
+import type { EventDoc } from "@/lib/types";
 import { Icon } from "./ui";
 
 type BIP = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
@@ -28,6 +30,15 @@ function platform(): Kind {
   if (ios) return inApp ? "ios-inapp" : "ios";
   return /android/i.test(ua) ? "android" : "other";
 }
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || !!(navigator as Navigator & { standalone?: boolean }).standalone;
+
+/** Players on a phone check in from the installed app, not a browser tab. Computers carry on in the browser.
+    null until the first render on the device, so the server-rendered page doesn't guess. */
+export function useMustInstall(): boolean | null {
+  const [must, setMust] = useState<boolean | null>(null);
+  useEffect(() => setMust(!isStandalone() && platform() !== "other"), []);
+  return must;
+}
 
 /** "Get the app", with steps for the phone in hand.
     iPhone: only before check-in. A Home Screen app there doesn't share Safari's storage, so installing first
@@ -37,8 +48,7 @@ export function InstallPrompt({ stage }: { stage: "before" | "after" }) {
   const [kind, setKind] = useState<Kind | null>(null);
   const [hidden, setHidden] = useState(true);
   useEffect(() => {
-    const standalone = matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone;
-    if (standalone || ls.get("install.dismissed", false)) return;
+    if (isStandalone() || ls.get("install.dismissed", false)) return;
     setKind(platform());
     setEvt(deferred);
     setHidden(false);
@@ -95,5 +105,82 @@ export function InstallPrompt({ stage }: { stage: "before" | "after" }) {
       {body}
       {evt ? <button className="btn sm dark" onClick={install}>Install</button> : null}
     </section>
+  );
+}
+
+const Step = ({ ic, title, children }: { ic: ReactNode; title: string; children?: ReactNode }) => (
+  <li><span className="ws-ic">{ic}</span><p><b>{title}</b>{children}</p></li>
+);
+const AppIcon = <img src="/icons/icon-192.png" alt="" width={48} height={48} />;
+
+/** The only page a phone sees in a browser tab: install Qsina, then check in from the app.
+    The app opens on this event: its manifest's start_url carries the event's check-in code (app/m/[id]). */
+export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
+  const [evt, setEvt] = useState<BIP | null>(null);
+  const [kind, setKind] = useState<Kind | null>(null);
+  const [installed, setInstalled] = useState(false);
+  useEffect(() => {
+    setKind(platform());
+    setEvt(deferred);
+    waiting.add(setEvt);
+    const done = () => setInstalled(true);
+    window.addEventListener("appinstalled", done);
+    return () => { waiting.delete(setEvt); window.removeEventListener("appinstalled", done); };
+  }, []);
+  if (!kind) return null;
+  const install = async () => {
+    if (!evt) return;
+    await evt.prompt();
+    if ((await evt.userChoice).outcome === "accepted") setInstalled(true);
+    deferred = null;
+    setEvt(null);
+  };
+  const open = <Step ic={AppIcon} title="Open Qsina">From your {kind === "android" ? "home screen" : "Home Screen"}. It opens right on this event.</Step>;
+  const pick = <Step ic={<Icon n="check" />} title="Check in">Find your name and tap <em>Yes, check me in</em>.</Step>;
+
+  let steps;
+  if (installed) steps = <>{open}{pick}</>;
+  else if (kind === "ios") steps = (
+    <>
+      <Step ic={<Icon n="share" />} title="Tap Share"><Icon n="share" cls="inline" /> is at the bottom in Safari, or top right in Chrome.</Step>
+      <Step ic={<Icon n="plus" />} title="Add to Home Screen">Scroll down the list to find it, then tap <em>Add</em>.</Step>
+      {open}{pick}
+    </>
+  );
+  else if (kind === "ios-inapp") steps = (
+    <>
+      <Step ic={<Icon n="share" />} title="Open in Safari">Tap <em>•••</em> or <Icon n="share" cls="inline" />, then <em>Open in Safari</em>. Apps like Instagram and Messenger can&apos;t install Qsina.</Step>
+      <Step ic={<Icon n="plus" />} title="Add to Home Screen">In Safari, tap <Icon n="share" cls="inline" /> <em>Share</em>, then <em>Add to Home Screen</em> and <em>Add</em>.</Step>
+      {open}{pick}
+    </>
+  );
+  else if (evt) steps = (
+    <>
+      <Step ic={<Icon n="download" />} title="Install Qsina">Tap the button below, then <em>Install</em>.</Step>
+      {open}{pick}
+    </>
+  );
+  else steps = (
+    <>
+      <Step ic={<b className="dots">⋮</b>} title="Open the menu">Tap <em>⋮</em> at the top right of Chrome.</Step>
+      <Step ic={<Icon n="download" />} title="Install app">Tap <em>Install app</em> or <em>Add to Home screen</em>, then <em>Install</em>.</Step>
+      {open}{pick}
+    </>
+  );
+
+  return (
+    <div className="view">
+      <section className="card welcome gate" aria-labelledby="gate-h">
+        <header>
+          <span className="eyebrow">{e.name} · {fmtDate(e.date)} · {fmtTime(e.start)}</span>
+          <h1 id="gate-h">{installed ? <>You&apos;ve got <mark>Qsina</mark></> : <>Get the app to <mark>check in</mark></>}</h1>
+          <p>{installed ? "Now open it from your home screen. Check-in happens in the app." : "Qsina calls you to your court when it's your turn, so check-in happens in the app. Takes about 20 seconds."}</p>
+        </header>
+        <ol>{steps}</ol>
+        {evt && !installed ? <div className="gate-go"><button className="btn dark block" onClick={install}>Install Qsina</button></div> : null}
+      </section>
+      {kind === "ios" || kind === "ios-inapp" ? ios : null}
+      <p className="small muted gate-note">Already installed? Open Qsina from your {kind === "android" ? "home screen" : "Home Screen"} instead of this page.</p>
+    </div>
   );
 }
