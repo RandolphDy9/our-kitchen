@@ -172,7 +172,8 @@ export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
     <div className="view">
       <section className="card welcome gate" aria-labelledby="gate-h">
         <header>
-          <span className="eyebrow">{e.name} · {fmtDate(e.date)} · {fmtTime(e.start)}</span>
+          <span className="eyebrow">{e.name}</span>
+          <span className="gate-when">{fmtDate(e.date)} · {fmtTime(e.start)}</span>
           <h1 id="gate-h">{installed ? <>You&apos;ve got <mark>Qsina</mark></> : <>Get the app to <mark>check in</mark></>}</h1>
           <p>{installed ? "Now open it from your home screen. Check-in happens in the app." : "Qsina calls you to your court when it's your turn, so check-in happens in the app. Takes about 20 seconds."}</p>
         </header>
