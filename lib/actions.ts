@@ -427,7 +427,9 @@ export async function createClub(name: string, ownerEmail: string, ownerName: st
 }
 export async function renameClub(name: string) {
   try {
-    await db().update(`clubs/${club()}`, { name: name.trim() });
+    // A club can have events but no club record (e.g. after clearing data): naming it creates the record.
+    if (get().clubs.some((c) => c.id === club())) await db().update(`clubs/${club()}`, { name: name.trim() });
+    else await db().set(`clubs/${club()}`, { name: name.trim() });
     toast("Club renamed");
     return true;
   } catch {
