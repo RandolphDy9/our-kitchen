@@ -47,8 +47,11 @@ export function recomputeRole() {
   if (!unlocked) Object.assign(patch, { preview: false, team: false, creating: false });
   set(patch);
   if (jump !== undefined) selectEvent(jump);
-  else if (unlocked && !was && !S.eventId && !S.fromQR) {
-    const first = clubEvents(get())[0];
+  // Signed in with nothing open: open their newest event. Clubs and events load separately after sign-in,
+  // so this runs again as each arrives, not just on the first unlock.
+  else if (unlocked && !S.eventId && !S.creating) {
+    // A club they picked with no events stays empty (to create one); otherwise any club they run will do.
+    const first = clubEvents(get())[0] || (canRun(S.clubId) ? undefined : S.events.find((x) => runs.includes(clubOf(x))));
     if (first) selectEvent(first.id);
   }
 }
