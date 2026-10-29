@@ -21,7 +21,7 @@ function MovePanel({ p, onCancel }: { p: Player; onCancel: () => void }) {
     setBusy(false);
   };
   return (
-    <form className="card mint move-in" onSubmit={go}>
+    <form className="card move-in" onSubmit={go}>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}><Av p={p} /><b style={{ flex: 1, minWidth: 0 }}>{p.name}</b></div>
       <p className="small"><b>{p.name}</b> is already checked in on another app or phone. If that&apos;s you, open Qsina there (on iPhone, usually Safari), tap <b>Move my check-in</b> on your profile, and enter the code here.</p>
       <div className="field"><label htmlFor="mv-code">4-digit code</label>
@@ -53,7 +53,7 @@ export function CheckinPage({ e }: { e: EventDoc }) {
   let pick;
   if (cp && cp.uid && cp.uid !== S.uid) pick = <MovePanel p={cp} onCancel={() => setConfirm(null)} />;
   else if (cp) pick = (
-    <div className="card mint" style={{ padding: 14 }}>
+    <div className="card" style={{ padding: 14 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}><Av p={cp} /><b style={{ flex: 1, minWidth: 0 }}>{cp.name}</b></div>
       <button className="btn dark block" onClick={() => claim(cp.id)}><Icon n="check" />Yes, check me in</button>
       <button className="btn ghost block" onClick={() => setConfirm(null)}>Not me</button>
