@@ -22,7 +22,7 @@ type S = ReturnType<typeof useApp.getState>;
 function tabsFor(S: S): [Tab, string, IconName][] {
   if (S.team || S.creating || S.signingIn || !ev(S)) return [];
   if (isAdminView(S)) return [["event", "Event", "home"], ["players", "Players", "users"], ["courts", "Courts", "grid"], ["bracket", "Playoffs", "bracket"], ["results", "Results", "trophy"], ["photos", "Photos", "image"]];
-  if (me(S)) return [["courts", "Courts", "grid"], ["bracket", "Playoffs", "bracket"], ["people", "Players", "users"], ["results", "Results", "trophy"], ["photos", "Photos", "image"]];
+  if (me(S)) return S.ciJustDone ? [] : [["courts", "Courts", "grid"], ["bracket", "Playoffs", "bracket"], ["people", "Players", "users"], ["results", "Results", "trophy"], ["photos", "Photos", "image"]];
   return [];
 }
 
