@@ -7,6 +7,10 @@ export type EventDoc = {
   createdAt?: string; reactions?: Reaction[]; courtNames?: Record<string, string>;
   /** IANA time zone the date and times are in (the organizer's, set on create). */
   tz?: string;
+  /** The club running it. Events from before clubs existed belong to the first club ("main"). */
+  clubId?: string;
+  /** Check-in code in its QR link and printed under it. Separate from the id, which isn't secret. Older events use their id. */
+  code?: string;
 };
 export type Player = {
   id: string; name: string; gender?: Gender; level: Level; checkedIn?: boolean; checkedInAt?: string | null;
@@ -24,7 +28,10 @@ export type Photo = { id: string; url?: string; assetId?: string; ref?: string; 
 export type Heart = { id: string; photo: string; from: string; uid?: string | null; at?: string };
 export type Comment = { id: string; photo: string; from: string; uid?: string | null; text: string; at?: string };
 export type Checkin = { id: string; at?: string; uid?: string | null; by?: string };
-export type Role = { id: string; name?: string; playerId?: string; eventId?: string; at?: string };
+/** A group that runs its own events. Events carry its id as clubId. */
+export type Club = { id: string; name: string; createdAt?: string };
+/** members/{clubId}/{id}: id is "e:{email}" for people who sign in with email, or a phone's guest uid for helpers. */
+export type Member = { id: string; role: "owner" | "admin"; name?: string; email?: string; playerId?: string; eventId?: string; at?: string };
 
 /* Brackets */
 export type Ref = { seed?: number; w?: string; l?: string; team?: number; ph?: string };

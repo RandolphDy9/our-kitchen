@@ -89,12 +89,24 @@ export const done = (S: S) => S.matches.filter((m) => m.status === "done").sort(
 export const busy = (S: S) => new Set(live(S).flatMap((m) => [...m.teamA, ...m.teamB]));
 export function me(S: S): Player | null {
   if (!S.eventId) return null;
-  return (S.uid && S.players.find((p) => p.uid === S.uid)) || pById(S, ls.get("me." + S.eventId, "")) || null;
+  const mine = S.uid && S.players.find((p) => p.uid === S.uid);
+  if (mine) return mine;
+  // Remembered name, unless its check-in has since moved to another app or phone.
+  const p = pById(S, ls.get("me." + S.eventId, ""));
+  return p && (!p.uid || p.uid === S.uid) ? p : null;
 }
 export const isAdminView = (S: S) => S.unlocked && !S.preview;
+/** Events made before clubs existed belong to the first club. */
+export const clubOf = (e?: { clubId?: string } | null) => e?.clubId || "main";
+export const clubName = (S: S, id?: string | null) => S.clubs.find((c) => c.id === id)?.name || "Club";
+/** Clubs this person can run: every club for the platform owner. */
+export const adminClubs = (S: S) => (S.isOwner ? S.clubs : S.clubs.filter((c) => S.myClubs[c.id]));
+export const isClubOwner = (S: S, id = S.clubId) => S.isOwner || (!!id && S.myClubs[id] === "owner");
+export const clubEvents = (S: S, id = S.clubId) => S.events.filter((e) => clubOf(e) === id);
 export const actorId = (S: S) => (isAdminView(S) ? "admin" : me(S)?.id || null);
 export const actorName = (S: S, id: string) => (id === "admin" ? "Organizer" : pName(S, id));
-export const photoSrc = (p: { url?: string; assetId?: string }) => p.url || "";
+/** A photo's link: the signed one for stored photos (blank until it arrives), else the stored url (demo mode). */
+export const photoSrc = (S: S, p: { url?: string; ref?: string }) => (p.ref ? S.photoUrls[p.ref]?.url || "" : p.url || "");
 export const reactionsOf = (S: S) => {
   const r = ev(S)?.reactions;
   return Array.isArray(r) && r.length ? r : DEFAULT_REACTIONS;
@@ -308,5 +320,6 @@ export const paths = {
   sched: (e: string) => `sched/${e}/m`,
   divs: (e: string) => `sched/${e}/d`,
 };
-export const checkinLink = (eventId: string) =>
-  (typeof location !== "undefined" ? location.origin : "") + "/#in-" + eventId;
+export const eventCode = (e: { id: string; code?: string }) => e.code || e.id;
+export const checkinLink = (e: { id: string; code?: string }) =>
+  (typeof location !== "undefined" ? location.origin : "") + "/#in-" + eventCode(e);

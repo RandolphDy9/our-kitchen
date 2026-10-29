@@ -3,7 +3,7 @@
 import { backend } from "./backend";
 import { get, ls, set, toast } from "./store";
 import {
-  CATS, LEVELS, bMatch, canUndo, checkinOpen, checkinOpensAt, curBracket, ev, fmtClock, live, lvlKey, me, pById, pName, paths, schedLocked, schedSides, uid,
+  CATS, LEVELS, bMatch, canUndo, clubOf, photoSrc, checkinOpen, checkinOpensAt, curBracket, ev, fmtClock, live, lvlKey, me, pById, pName, paths, schedLocked, schedSides, uid,
 } from "./model";
 import { nameKey, type Parsed } from "./schedule";
 import { selectEvent } from "./session";
@@ -88,6 +88,31 @@ export async function claim(id: string) {
     set({ ciJustDone: true });
   } catch {
     toast("Couldn't check you in. Check your connection and try again.");
+  }
+}
+
+/* ---------- moving a check-in ----------
+   A Home Screen app on iPhone (or another browser or phone) doesn't share storage with Safari, so the player
+   is a stranger there. The device holding the check-in shows a short code; the server checks it and moves it. */
+export async function showMoveCode(): Promise<string | null> {
+  const m = me(get());
+  if (!m) return null;
+  try {
+    return await db().moveCode(`${col.checkins()}/${m.id}`);
+  } catch {
+    toast("Couldn't make a code. Check your connection and try again.");
+    return null;
+  }
+}
+export async function moveIn(id: string, code: string): Promise<boolean> {
+  try {
+    if (!(await db().moveCheckin(`${col.checkins()}/${id}`, code))) return false;
+    ls.set("me." + get().eventId, id);
+    set({ ciJustDone: true });
+    return true;
+  } catch {
+    toast("Couldn't move your check-in. Check your connection and try again.");
+    return false;
   }
 }
 
@@ -340,7 +365,7 @@ export type EventDraft = { name: string; venue: string; date: string; start: str
 export async function createEvent(d: EventDraft, parsed?: Parsed, progress: (m: string) => void = () => {}) {
   const nid = uid();
   await db().set(paths.event(nid), {
-    name: d.name, venue: d.venue, date: d.date, start: d.start, end: d.end, courts: d.courts,
+    name: d.name, venue: d.venue, date: d.date, start: d.start, end: d.end, courts: d.courts, clubId: get().clubId || "main", code: uid(),
     courtNames: parsed?.courtNames || {}, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, createdAt: now(),
   });
   selectEvent(nid);
@@ -372,7 +397,7 @@ export async function deleteEvent(progress: (m: string) => void) {
     ], "Removing event data", progress);
     await db().remove(paths.event(id));
     // The events subscription then opens the next event, or the "create your first event" screen.
-    selectEvent(get().events.find((x) => x.id !== id)?.id || null);
+    selectEvent(get().events.find((x) => x.id !== id && clubOf(x) === get().clubId)?.id || null);
     toast(`“${name}” deleted`);
     return true;
   } catch {
@@ -380,23 +405,61 @@ export async function deleteEvent(progress: (m: string) => void) {
     return false;
   }
 }
-/* Admins are players the super admin picks. Access goes to the guest identity that checked them in,
-   so the role is keyed by that uid. */
+/* ---------- clubs ----------
+   The platform owner creates clubs and names their owners (by sign-in email). Club owners pick helpers from their
+   players; a helper's access goes to the guest identity on the phone they checked in with, keyed by that uid. */
+const club = () => get().clubId!;
+export const memberKey = (email: string) => "e:" + email.trim().toLowerCase();
+
+export async function createClub(name: string, ownerEmail: string, ownerName: string): Promise<string | null> {
+  const id = uid();
+  try {
+    await db().set(`clubs/${id}`, { name: name.trim(), createdAt: now() });
+    if (ownerEmail.trim()) await db().set(`members/${id}/${memberKey(ownerEmail)}`, { role: "owner", email: ownerEmail.trim().toLowerCase(), name: ownerName.trim(), at: now() });
+    set({ clubId: id });
+    selectEvent(null);
+    toast(`“${name.trim()}” created`);
+    return id;
+  } catch {
+    toast("Only the platform owner can create clubs.");
+    return null;
+  }
+}
+export async function renameClub(name: string) {
+  try {
+    await db().update(`clubs/${club()}`, { name: name.trim() });
+    toast("Club renamed");
+    return true;
+  } catch {
+    toast("Only the club owner can rename the club.");
+    return false;
+  }
+}
+export async function addOwner(email: string, name: string) {
+  try {
+    await db().set(`members/${club()}/${memberKey(email)}`, { role: "owner", email: email.trim().toLowerCase(), name: name.trim(), at: now() });
+    toast(`${name.trim() || email.trim()} is now a club owner`);
+    return true;
+  } catch {
+    toast("Only the platform owner can add club owners.");
+    return false;
+  }
+}
 export async function addAdmin(p: Player) {
   if (!p.uid) return toast(`${p.name} needs to check in on their phone first.`);
   try {
-    await db().set(`roles/${p.uid}`, { name: p.name, playerId: p.id, eventId: E(), at: now() });
+    await db().set(`members/${club()}/${p.uid}`, { role: "admin", name: p.name, playerId: p.id, eventId: E(), at: now() });
     toast(`${p.name} is now an admin`);
   } catch {
-    toast("Only the super admin can add admins.");
+    toast("Only the club owner can add admins.");
   }
 }
-export async function removeAdmin(uid: string) {
+export async function removeMember(id: string) {
   try {
-    await db().remove(`roles/${uid}`);
-    toast("Admin removed");
+    await db().remove(`members/${club()}/${id}`);
+    toast("Removed");
   } catch {
-    toast("Only the super admin can remove admins.");
+    toast("Only the club owner can remove admins.");
   }
 }
 export async function organizerSignIn() {
@@ -420,10 +483,12 @@ export async function organizerPasswordSignIn(email: string, password: string): 
     const code = (e as { code?: string }).code || "";
     return code === "invalid_credentials" ? "Wrong email or password." : "Couldn't sign in. Check your connection and try again.";
   }
+  // Club roles load just after sign-in; give them a few seconds.
+  for (let i = 0; i < 40 && !get().unlocked; i++) await new Promise((r) => setTimeout(r, 100));
   if (!get().unlocked) {
-    // Signed in, but not on the admin list: go back to being a guest.
+    // Signed in, but not a club owner: go back to being a guest.
     await db().signOut().catch(() => {});
-    return "Only the super admin signs in here.";
+    return "This email isn't a club owner yet. Ask the Qsina team to add it.";
   }
   set({ signingIn: false });
   toast("Signed in");
@@ -467,7 +532,11 @@ export async function uploadPhotos(who: string, files: FileList | File[], msg: (
       await db().set(`${col.gallery()}/${id}`, { url: r.url, ref: r.ref, playerId: who, uploaderUid: S.uid || null, createdAt: now() });
       ok++;
     } catch (err) {
-      return msg(`Photo ${ok + 1} didn't upload (${(err as { code?: string })?.code || "error"}). Try a smaller image.`);
+      // The server only takes photos from admins, or players checked in on this device, 5 each.
+      const e = err as { code?: string; message?: string; statusCode?: string };
+      const denied = e?.code === "42501" || e?.statusCode === "403" || /row-level security|unauthorized/i.test(e?.message || "");
+      return msg(denied ? `Photo ${ok + 1} wasn't allowed. Only players checked in on this phone can add photos, up to 5 each.`
+        : `Photo ${ok + 1} didn't upload (${e?.code || "error"}). Try a smaller image.`);
     }
   }
   msg(`Added ${ok} ${ok === 1 ? "photo" : "photos"}.` + (files.length > left ? ` Only ${left} ${left === 1 ? "slot was" : "slots were"} left.` : ""));
@@ -528,17 +597,95 @@ export async function saveBlob(filename: string, blob: Blob) {
 }
 export async function downloadPhoto(pid: string) {
   const S = get(), p = S.photos.find((x) => x.id === pid);
-  if (!p?.url) return;
+  const src = p ? photoSrc(S, p) : "";
+  if (!p || !src) return;
   try {
-    const res = await fetch(p.url);
+    const res = await fetch(src);
     if (!res.ok) throw new Error("fetch");
     const blob = await res.blob(), ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
     const who = (pName(S, p.playerId).split(" ")[0] || "photo").toLowerCase().replace(/[^a-z0-9]/g, "");
-    await saveBlob(`ourkitchen-${who}-${p.id}.${ext}`, blob);
+    await saveBlob(`qsina-${who}-${p.id}.${ext}`, blob);
   } catch {
     toast("Couldn't download that photo. Try again in a moment.");
   }
 }
+
+/* ---------- saving many photos ---------- */
+export type PhotoFile = { id: string; file: File };
+/** Phones save through the share sheet ("Save Images" lands in the camera roll); everything else gets a .zip. */
+export const canShareFiles = () => {
+  if (typeof window === "undefined" || !matchMedia("(pointer:coarse)").matches) return false;
+  const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+  return !!nav.canShare?.({ files: [new File([new Blob(["x"], { type: "image/jpeg" })], "x.jpg", { type: "image/jpeg" })] });
+};
+
+/** "qsina-mark-1.jpg", numbered per player across the whole list, so batches never repeat a name. */
+export function photoNames(list: { id: string; playerId: string }[]) {
+  const S = get(), seen: Record<string, number> = {}, names: Record<string, string> = {};
+  for (const p of list) {
+    const who = (pName(S, p.playerId).split(" ")[0] || "photo").toLowerCase().replace(/[^a-z0-9]/g, "") || "photo";
+    seen[who] = (seen[who] || 0) + 1;
+    names[p.id] = `qsina-${who}-${seen[who]}`;
+  }
+  return names;
+}
+
+/** Downloads photos four at a time, in their original order. Ones that fail are skipped and counted. */
+export async function fetchPhotoFiles(list: { id: string; url?: string; ref?: string }[], names: Record<string, string>, progress: (done: number) => void) {
+  const out: (PhotoFile | null)[] = new Array(list.length).fill(null);
+  let next = 0, done = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const i = next++, p = list[i];
+      try {
+        const src = photoSrc(get(), p);
+        if (!src) throw new Error("no link yet");
+        const res = await fetch(src);
+        if (!res.ok) throw new Error("fetch");
+        const blob = await res.blob(), ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+        out[i] = { id: p.id, file: new File([blob], `${names[p.id] || p.id}.${ext}`, { type: blob.type || "image/jpeg" }) };
+      } catch {}
+      progress(++done);
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  const files = out.filter((x): x is PhotoFile => !!x);
+  return { files, failed: list.length - files.length };
+}
+
+/** Opens the share sheet with the photos. False if the person closed it without saving. */
+export async function sharePhotoFiles(files: PhotoFile[]) {
+  try {
+    await navigator.share({ files: files.map((f) => f.file) });
+    return true;
+  } catch (e) {
+    if ((e as DOMException).name !== "AbortError") toast("Couldn't open the share sheet. Try fewer photos.");
+    return false;
+  }
+}
+
+/** One .zip download. JPEGs are already compressed, so they're stored as they are. */
+export async function zipPhotoFiles(files: PhotoFile[], zipName: string) {
+  const { zipSync } = await import("fflate");
+  const entries: Record<string, [Uint8Array, { level: 0 }]> = {};
+  for (const f of files) entries[f.file.name] = [new Uint8Array(await f.file.arrayBuffer()), { level: 0 }];
+  const zip = zipSync(entries);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([zip as BlobPart], { type: "application/zip" }));
+  a.download = zipName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+/** Photos this device already saved, so "only new" can skip them next time. */
+export const savedPhotos = () => new Set(ls.get<string[]>("saved." + get().eventId, []));
+export const markSaved = (ids: string[]) => {
+  const all = savedPhotos();
+  ids.forEach((id) => all.add(id));
+  ls.set("saved." + get().eventId, [...all]);
+};
 
 /* ---------- test alert ---------- */
 export function testAlert() {

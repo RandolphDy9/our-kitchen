@@ -11,6 +11,8 @@ type Row = { col: string; id: string; data: Data };
 type Sub = { docs: Map<string, Doc>; cbs: Set<(d: Doc[]) => void>; errs: Set<(e: unknown) => void> };
 
 const BUCKET = "photos";
+/** Signed photo links last 6 hours; the app renews them after 5 (see refreshPhotoUrls). */
+const PHOTO_LINK_SECONDS = 6 * 3600;
 const CACHE = "ourkitchen.cache.";
 const split = (docPath: string) => {
   const i = docPath.lastIndexOf("/");
@@ -53,6 +55,8 @@ export function createSupabaseBackend(): Backend {
       .on("postgres_changes", { event: "*", schema: "public", table: "docs" }, (p) => {
         const row = (p.eventType === "DELETE" ? p.old : p.new) as Partial<Row>;
         const s = row.col ? subs.get(row.col) : undefined;
+        // Just made a club admin or owner: the club itself only becomes readable now.
+        if (!s && row.col?.startsWith("members/") && p.eventType === "INSERT") load("clubs");
         if (!s || !row.id) return;
         if (p.eventType === "DELETE") s.docs.delete(row.id);
         else s.docs.set(row.id, { id: row.id, ...(row.data || {}) });
@@ -130,12 +134,37 @@ export function createSupabaseBackend(): Backend {
     async upload(path, blob) {
       const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
       fail(error);
-      return { url: sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, ref: path };
+      // The bucket is private: photos are shown through signed links (signPhotos), so there's no lasting url.
+      return { url: "", ref: path };
+    },
+    async signPhotos(refs) {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(refs, PHOTO_LINK_SECONDS);
+      fail(error);
+      return Object.fromEntries((data || []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl]] : [])));
     },
     async removeFile(path) {
       if (!path) return;
       const { error } = await sb.storage.from(BUCKET).remove([path]);
       fail(error);
+    },
+    async join(code) {
+      const { data, error } = await sb.rpc("ok_join", { p_code: code });
+      fail(error);
+      // Everything about the event is readable now.
+      if (data) await Promise.all([...subs.keys()].map(load));
+      return (data as string | null) || null;
+    },
+    async moveCode(path) {
+      const [col, id] = split(path);
+      const { data, error } = await sb.rpc("ok_move_code", { p_col: col, p_id: id });
+      fail(error);
+      return String(data);
+    },
+    async moveCheckin(path, code) {
+      const [col, id] = split(path);
+      const { data, error } = await sb.rpc("ok_move_checkin", { p_col: col, p_id: id, p_code: code });
+      fail(error);
+      return data === true;
     },
   };
 }

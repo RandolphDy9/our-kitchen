@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useApp, set, get } from "@/lib/store";
-import { hue, initials, todayISO } from "@/lib/model";
+import { clubName, clubOf, hue, initials, isClubOwner, todayISO } from "@/lib/model";
+import { switchClub } from "@/lib/session";
+import type { Member } from "@/lib/types";
 import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
-import { addAdmin, createEvent, organizerPasswordSignIn, organizerSignOut, removeAdmin, type EventDraft } from "@/lib/actions";
-import { ownerName } from "@/lib/backend/types";
+import { addAdmin, addOwner, createClub, createEvent, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
 
 export function SignInPage() {
@@ -26,7 +27,7 @@ export function SignInPage() {
   return (
     <div className="view team">
       <button className="iconpill" onClick={cancel} style={{ justifySelf: "start" }}>← Back</button>
-      <div className="greet"><h1>Organizer sign in</h1><p>For the super admin. Admins get access on the phone they checked in with.</p></div>
+      <div className="greet"><h1>Organizer sign in</h1><p>For club owners. Admins who help at events get access on the phone they checked in with.</p></div>
       <form className="card" onSubmit={submit} noValidate>
         <div className="field"><label htmlFor="si-email">Email</label>
           <input id="si-email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} /></div>
@@ -165,50 +166,125 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
   );
 }
 
+/** The club on screen: its name, owners and admins. The platform owner also gets every club and "New club". */
 export function TeamPage() {
-  const S = useApp();
+  const S = useApp(), cid = S.clubId || "";
+  const owner = isClubOwner(S);
   const [q, setQ] = useState("");
   const [rmAsk, setRmAsk] = useState<string | null>(null);
+  const list = S.members[cid] || [];
+  const owners = list.filter((m) => m.role === "owner"), admins = list.filter((m) => m.role === "admin");
   const ql = q.trim().toLowerCase();
-  const isAdmin = (uid?: string | null) => !!uid && S.roles.some((r) => r.id === uid);
-  const list = S.players.filter((p) => !isAdmin(p.uid) && (!ql || p.name.toLowerCase().includes(ql)))
+  const isAdmin = (uid?: string | null) => !!uid && list.some((m) => m.id === uid);
+  const pickable = S.players.filter((p) => !isAdmin(p.uid) && (!ql || p.name.toLowerCase().includes(ql)))
     .sort((a, b) => Number(!!b.uid) - Number(!!a.uid) || a.name.localeCompare(b.name)).slice(0, 30);
+  const removeBtn = (m: Member, label: string) => rmAsk === m.id
+    ? <span className="row" style={{ gap: 6 }}><button className="btn sm danger" onClick={() => { setRmAsk(null); removeMember(m.id); }}>Remove</button><button className="btn sm ghost" onClick={() => setRmAsk(null)}>Keep</button></span>
+    : <button className="btn sm ghost" onClick={() => setRmAsk(m.id)} aria-label={`Remove ${label}`}>Remove</button>;
   return (
     <div className="view team">
       <button className="iconpill" onClick={() => set({ team: false })} style={{ justifySelf: "start" }}>← Back</button>
-      <div className="greet"><h1>Admins</h1><p>You&apos;re the super admin. Pick who can run events.</p></div>
-      <section className="card">
-        <div className="lrow" style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
-          <span className="av c0">{initials(ownerName())}</span>
-          <div style={{ minWidth: 0 }}><div className="name">{ownerName()} (you)</div></div>
-          <span className="pill dark">Super admin</span>
-        </div>
-        <button className="btn sm ghost" style={{ justifySelf: "start" }} onClick={organizerSignOut}>Sign out</button>
+      <div className="greet"><h1>{clubName(S, cid)}</h1>
+        <p>{S.isOwner ? "You run Qsina, so you can manage every club." : "You own this club. Pick who helps run its events."}</p></div>
+      {owner ? <ClubName key={cid} /> : null}
+      <section className="card"><div className="sec-head"><h2>Owners</h2><span className="seeall">{owners.length}</span></div>
+        <p className="small muted">Owners sign in with their email and password, and can add or remove admins.</p>
+        {owners.length ? <div className="lboard">{owners.map((m) => (
+          <div className="lrow" key={m.id} style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
+            <span className={`av c${hue(m.id)}`}>{initials(m.name || m.email || "?")}</span>
+            <div style={{ minWidth: 0 }}><div className="name">{m.name || m.email}{S.user?.email && m.email === S.user.email ? " (you)" : ""}</div><div className="sub">{m.email}</div></div>
+            {S.isOwner ? removeBtn(m, m.name || m.email || "owner") : <span />}
+          </div>
+        ))}</div> : <p className="small muted">No owner yet.</p>}
+        {S.isOwner ? <AddOwner key={cid} /> : null}
       </section>
-      <section className="card"><div className="sec-head"><h2>Admins</h2><span className="seeall">{S.roles.length}</span></div>
-        {S.roles.length ? <div className="lboard">{S.roles.map((r) => (
-          <div className="lrow" key={r.id} style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
-            <span className={`av c${hue(r.id)}`}>{initials(r.name || "?")}</span>
-            <div style={{ minWidth: 0 }}><div className="name" style={{ overflowWrap: "anywhere" }}>{r.name || "Unnamed admin"}</div></div>
-            {rmAsk === r.id
-              ? <span className="row" style={{ gap: 6 }}><button className="btn sm danger" onClick={() => { setRmAsk(null); removeAdmin(r.id); }}>Remove</button><button className="btn sm ghost" onClick={() => setRmAsk(null)}>Keep</button></span>
-              : <button className="btn sm ghost" onClick={() => setRmAsk(r.id)}>Remove</button>}
+      <section className="card"><div className="sec-head"><h2>Admins</h2><span className="seeall">{admins.length}</span></div>
+        {admins.length ? <div className="lboard">{admins.map((m) => (
+          <div className="lrow" key={m.id} style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
+            <span className={`av c${hue(m.id)}`}>{initials(m.name || "?")}</span>
+            <div style={{ minWidth: 0 }}><div className="name" style={{ overflowWrap: "anywhere" }}>{m.name || "Unnamed admin"}</div></div>
+            {owner ? removeBtn(m, m.name || "admin") : <span />}
           </div>
         ))}</div> : <p className="small muted">No admins yet. Pick someone below.</p>}
       </section>
-      <section className="card"><h2>Make someone an admin</h2>
+      {owner ? <section className="card"><h2>Make someone an admin</h2>
         {S.eventId ? <>
           <div className="field"><label htmlFor="teamq">Find a player</label>
             <input id="teamq" type="search" placeholder="Start typing a name" autoComplete="off" autoCapitalize="words" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-          <div className="pick">{list.length ? list.map((p) => (
+          <div className="pick">{pickable.length ? pickable.map((p) => (
             <button key={p.id} disabled={!p.uid} onClick={() => addAdmin(p)} style={p.uid ? undefined : { opacity: 0.55, cursor: "default" }}>
               <Av p={p} /><span className="grow">{p.name}</span>
               <span className="small muted">{p.uid ? "Make admin" : "Not checked in"}</span>
             </button>
           )) : <p className="small muted">{S.players.length ? `No one named “${q}”.` : "This event has no players yet. Import the schedule first."}</p>}</div>
-          <p className="small muted">Admin access goes to the phone they checked in with. Ask them to scan the check-in QR code first; if they switch phones or clear their browser, make them admin again.</p>
-        </> : <p className="small muted">Open an event first. You pick admins from its players.</p>}
-      </section>
+          <p className="small muted">Admin access goes to the phone they checked in with. Ask them to scan the check-in QR code first. If they switch phones, they can use Move my check-in, or you can make them admin again.</p>
+        </> : <p className="small muted">Open one of this club&apos;s events first. You pick admins from its players.</p>}
+      </section> : null}
+      {S.isOwner ? <AllClubs /> : null}
+      <button className="btn ghost" style={{ justifySelf: "start" }} onClick={organizerSignOut}>Sign out</button>
     </div>
+  );
+}
+
+function ClubName() {
+  const S = useApp();
+  const [name, setName] = useState(clubName(S, S.clubId));
+  const changed = name.trim() && name.trim() !== clubName(S, S.clubId);
+  return (
+    <form className="card" onSubmit={(e) => { e.preventDefault(); if (changed) renameClub(name); }}>
+      <div className="field"><label htmlFor="club-name">Club name</label>
+        <input id="club-name" type="text" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></div>
+      {changed ? <button className="btn sm dark" type="submit" style={{ justifySelf: "start" }}>Save name</button> : null}
+    </form>
+  );
+}
+
+const loginHelp = "Then create their login in Supabase: Authentication → Users → Add user, with the same email and Auto Confirm User ticked. Send them the password; they sign in with Organizer sign in.";
+
+function AddOwner() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  if (!open) return <button className="btn sm" style={{ justifySelf: "start" }} onClick={() => setOpen(true)}>Add an owner</button>;
+  const ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  return (
+    <form className="grid-form" onSubmit={async (e) => { e.preventDefault(); if (ok && (await addOwner(email, name))) { setOpen(false); setEmail(""); setName(""); } }}>
+      <div className="field"><label htmlFor="ow-name">Name</label><input id="ow-name" type="text" maxLength={60} autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div className="field"><label htmlFor="ow-email">Sign-in email</label><input id="ow-email" type="email" inputMode="email" autoCapitalize="none" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+      <p className="small muted">{loginHelp}</p>
+      <div className="row"><button className="btn sm dark" type="submit" disabled={!ok}>Add owner</button><button className="btn sm ghost" type="button" onClick={() => setOpen(false)}>Cancel</button></div>
+    </form>
+  );
+}
+
+/** Platform owner only: every club, switching between them, and creating a new one. */
+function AllClubs() {
+  const S = useApp();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [owner, setOwner] = useState("");
+  const ok = name.trim() && (!email.trim() || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()));
+  return (
+    <section className="card"><div className="sec-head"><h2>All clubs</h2><span className="seeall">{S.clubs.length}</span></div>
+      <div className="pick">{S.clubs.map((c) => {
+        const n = S.events.filter((e) => clubOf(e) === c.id).length;
+        return (
+          <button key={c.id} onClick={() => switchClub(c.id)} aria-current={c.id === S.clubId ? "true" : undefined}>
+            <span className="grow">{c.name}</span>
+            <span className="small muted">{c.id === S.clubId ? "Open now" : `${n} ${n === 1 ? "event" : "events"}`}</span>
+          </button>
+        );
+      })}</div>
+      {open ? (
+        <form className="grid-form" onSubmit={async (e) => { e.preventDefault(); if (ok && (await createClub(name, email, owner))) { setOpen(false); setName(""); setEmail(""); setOwner(""); } }}>
+          <div className="field"><label htmlFor="nc-name">Club name</label><input id="nc-name" type="text" maxLength={60} autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="field"><label htmlFor="nc-owner">Owner&apos;s name</label><input id="nc-owner" type="text" maxLength={60} autoComplete="off" value={owner} onChange={(e) => setOwner(e.target.value)} /></div>
+          <div className="field"><label htmlFor="nc-email">Owner&apos;s sign-in email</label><input id="nc-email" type="email" inputMode="email" autoCapitalize="none" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <p className="small muted">{loginHelp} You can also add the owner later.</p>
+          <div className="row"><button className="btn sm dark" type="submit" disabled={!ok}>Create club</button><button className="btn sm ghost" type="button" onClick={() => setOpen(false)}>Cancel</button></div>
+        </form>
+      ) : <button className="btn sm" style={{ justifySelf: "start" }} onClick={() => setOpen(true)}>New club</button>}
+    </section>
   );
 }

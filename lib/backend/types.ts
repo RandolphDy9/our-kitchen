@@ -36,7 +36,16 @@ export interface Backend {
   signInOrganizer(email?: string, password?: string): Promise<void>;
   signOut(): Promise<void>;
   upload(path: string, blob: Blob): Promise<{ url: string; ref: string }>;
+  /** Signed links for private photos, by storage path. Only for photos in events this person can see. */
+  signPhotos(refs: string[]): Promise<Record<string, string>>;
   removeFile(ref: string): Promise<void>;
+  /** A 4-digit code that lets the player holding this check-in move it to another app or phone (10 minutes, 5 tries). */
+  moveCode(checkinPath: string): Promise<string>;
+  /** Takes over a check-in with that code. False when the code is wrong or expired. */
+  moveCheckin(checkinPath: string, code: string): Promise<boolean>;
+  /** Opening an event's QR code or link, or typing its check-in code, "joins" it: only then can this person read it.
+      Returns the event's id, or null when no event has that code. */
+  join(code: string): Promise<string | null>;
 }
 
 export const ownerEmail = () => (process.env.NEXT_PUBLIC_OWNER_EMAIL || "").trim().toLowerCase();

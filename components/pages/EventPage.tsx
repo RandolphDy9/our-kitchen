@@ -2,14 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useApp, set, get, toast } from "@/lib/store";
-import { MAX_REACTIONS, checkinLink, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
+import { MAX_REACTIONS, adminClubs, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
 import { deleteEvent, impDelete, impRun, saveBlob, saveReactions, schedLeftovers } from "@/lib/actions";
-import { selectEvent } from "@/lib/session";
+import { selectEvent, switchClub } from "@/lib/session";
 import { nameKey, parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
 import type { EventDoc, Reaction } from "@/lib/types";
 import { Hero, ActivityFeed, PulseCard } from "../widgets";
 import { Icon, Stat } from "../ui";
+import { Select } from "../Select";
 
 export function Tiles() {
   const S = useApp();
@@ -67,7 +68,7 @@ async function saveQR(e: EventDoc, src: HTMLCanvasElement) {
   rr(160, 540, W - 320, 880, "#ffffff");
   x.fillStyle = "#18181d"; x.font = `700 76px ${osw}`; x.fillText("SCAN TO CHECK IN", W / 2, 630);
   x.imageSmoothingEnabled = false; x.drawImage(src, 300, 700, 600, 600);
-  x.fillStyle = "#848995"; x.font = `600 30px ${osw}`; x.fillText("EVENT " + e.id.toUpperCase(), W / 2, 1360);
+  x.fillStyle = "#848995"; x.font = `600 30px ${osw}`; x.fillText("EVENT " + eventCode(e).toUpperCase(), W / 2, 1360);
   x.font = `500 34px ${osw}`; x.fillText("Open your phone camera and point it at the code", W / 2, 1500);
   const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
   if (blob) await saveBlob("checkin-qr-" + e.id + ".png", blob);
@@ -77,7 +78,7 @@ const QR_OPTS = { width: 400, margin: 2, errorCorrectionLevel: "M", color: { dar
 
 function QRCard({ e }: { e: EventDoc }) {
   const [src, setSrc] = useState("");
-  const link = checkinLink(e.id);
+  const link = checkinLink(e);
   // An <img> scales to its box; QRCode.toCanvas pins the canvas to 400px inline, which the box cropped.
   useEffect(() => {
     let live = true;
@@ -103,7 +104,7 @@ function QRCard({ e }: { e: EventDoc }) {
       <div className="sec-head"><h2>Check-in QR</h2></div>
       <div className="qr-box"><b>Scan to check in</b>
         <div id="qr">{src ? <img src={src} alt="Check-in QR code" width={400} height={400} /> : null}</div>
-        <span className="code">EVENT {e.id.toUpperCase()}</span>
+        <span className="code">EVENT {eventCode(e).toUpperCase()}</span>
       </div>
       <button className="btn dark block" onClick={poster}><Icon n="qr" />Save QR poster</button>
       <button className="btn soft block" onClick={share}>Share check-in link</button>
@@ -224,7 +225,7 @@ function ImportCard() {
   return (
     <section className="card" ref={cardRef} style={{ scrollMarginTop: 84 }}>
       <div className="sec-head"><h2>Import tournament schedule</h2><span className="pill">Excel</span></div>
-      <p className="small muted">Upload the schedule your admins built: a time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”. OurKitchen creates the players, divisions, pools, playoff games and court times for this event.</p>
+      <p className="small muted">Upload the schedule your admins built: a time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”. Qsina creates the players, divisions, pools, playoff games and court times for this event.</p>
       {body}
     </section>
   );
@@ -267,17 +268,28 @@ function RxEditor() {
 function DeleteEventCard({ e }: { e: EventDoc }) {
   const S = useApp();
   const [ask, setAsk] = useState(false);
+  const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
-  const go = async () => {
+  // Typing the word is the deliberate step; any capitalization counts, since phones capitalize the first letter.
+  const ok = typed.trim().toLowerCase() === "confirm";
+  const keep = () => { setAsk(false); setTyped(""); };
+  const go = async (x: React.FormEvent) => {
+    x.preventDefault();
+    if (!ok) return;
     setMsg("Deleting…");
-    if (!(await deleteEvent(setMsg))) { setMsg(null); setAsk(false); }
+    if (!(await deleteEvent(setMsg))) { setMsg(null); keep(); }
   };
   return (
     <section className="card"><h2>Delete event</h2>
-      {msg ? <p className="small">{msg}</p> : ask ? <>
-        <p className="small">This permanently deletes <b>{e.name}</b> with its {S.roster.length} players, check-ins, games, playoffs and {S.photos.length} photos. It can&apos;t be undone.</p>
-        <div className="row"><button className="btn sm danger" onClick={go}>Yes, delete this event</button><button className="btn sm ghost" onClick={() => setAsk(false)}>Keep it</button></div>
-      </> : <button className="btn sm ghost" style={{ justifySelf: "start" }} onClick={() => setAsk(true)}>Delete event…</button>}
+      {msg ? <p className="small">{msg}</p> : ask ? (
+        <form className="del-form" onSubmit={go}>
+          <p className="small">This permanently deletes <b>{e.name}</b> with its {S.roster.length} players, check-ins, games, playoffs and {S.photos.length} photos. It can&apos;t be undone.</p>
+          <div className="field"><label htmlFor="del-confirm">To confirm, type <b>Confirm</b></label>
+            <input id="del-confirm" type="text" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="done" autoFocus
+              value={typed} onChange={(x) => setTyped(x.target.value)} /></div>
+          <div className="row"><button type="submit" className="btn sm danger" disabled={!ok}>Delete this event</button><button type="button" className="btn sm ghost" onClick={keep}>Keep it</button></div>
+        </form>
+      ) : <button className="btn sm ghost" style={{ justifySelf: "start" }} onClick={() => setAsk(true)}>Delete event…</button>}
     </section>
   );
 }
@@ -287,10 +299,11 @@ export function EventPage({ e }: { e: EventDoc }) {
   return (
     <div className="view">
       <div className="row">
+        {adminClubs(S).length > 1 ? <div className="field" style={{ flex: "1 1 160px" }}><label htmlFor="clubSel">Club</label>
+          <Select id="clubSel" value={S.clubId || ""} onChange={switchClub} options={adminClubs(S).map((c) => [c.id, c.name] as const)} />
+        </div> : null}
         <div className="field" style={{ flex: "1 1 200px" }}><label htmlFor="evSel">Event</label>
-          <select id="evSel" value={S.eventId || ""} onChange={(x) => selectEvent(x.target.value)}>
-            {S.events.map((x) => <option key={x.id} value={x.id}>{x.name} · {fmtDate(x.date)}</option>)}
-          </select>
+          <Select id="evSel" value={S.eventId || ""} onChange={selectEvent} options={clubEvents(S).map((x) => [x.id, `${x.name} · ${fmtDate(x.date)}`] as const)} />
         </div>
       </div>
       <Hero e={e} />

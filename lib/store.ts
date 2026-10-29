@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import type { AuthUser } from "./backend";
 import type {
-  Bracket, Checkin, Comment, Div, EventDoc, Heart, Kudos, Match, Photo, Player, Role, Sched,
+  Bracket, Checkin, Club, Comment, Div, EventDoc, Heart, Kudos, Match, Member, Photo, Player, Sched,
 } from "./types";
 
 export type Tab = "event" | "players" | "courts" | "bracket" | "results" | "photos" | "people";
@@ -11,11 +11,16 @@ export type CView = "schedule" | "pools" | "board";
 export type AppState = {
   // connection + identity
   ready: boolean; offline: boolean; mode: "supabase" | "local" | null;
-  user: AuthUser | null; uid: string | null; isOwner: boolean; assigned: boolean; unlocked: boolean; preview: boolean;
+  /** isOwner: the platform owner (every club). myClubs: this person's role in each club they help run.
+      unlocked: they can run the club of what's on screen (clubId). */
+  user: AuthUser | null; uid: string | null; isOwner: boolean; myClubs: Record<string, Member["role"]>; unlocked: boolean; preview: boolean;
+  clubs: Club[]; members: Record<string, Member[]>; clubId: string | null;
   // data
   events: EventDoc[]; eventId: string | null; fromQR: boolean;
   roster: Player[]; checkins: Checkin[]; players: Player[]; matches: Match[]; photos: Photo[];
-  kudos: Kudos[]; hearts: Heart[]; comments: Comment[]; brackets: Bracket[]; sched: Sched[]; divs: Div[]; roles: Role[];
+  kudos: Kudos[]; hearts: Heart[]; comments: Comment[]; brackets: Bracket[]; sched: Sched[]; divs: Div[];
+  /** Signed links for private photos, by storage path, and when they were made. */
+  photoUrls: Record<string, { url: string; at: number }>;
   loaded: Record<string, boolean>;
   // view state shared across screens
   tab: Tab | null; team: boolean; creating: boolean; signingIn: boolean; ciJustDone: boolean;
@@ -34,8 +39,9 @@ export const initialEventState = {
 
 export const useApp = create<AppState>(() => ({
   ready: false, offline: false, mode: null,
-  user: null, uid: null, isOwner: false, assigned: false, unlocked: false, preview: false,
-  events: [], eventId: null, fromQR: false, roles: [],
+  user: null, uid: null, isOwner: false, myClubs: {}, unlocked: false, preview: false,
+  clubs: [], members: {}, clubId: null, photoUrls: {},
+  events: [], eventId: null, fromQR: false,
   ...initialEventState,
   team: false, creating: false, signingIn: false, ciJustDone: false, createMsg: null, toast: null, flashImport: false, upnext: null,
 }));

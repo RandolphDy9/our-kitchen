@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useApp, set, ls, type Tab } from "@/lib/store";
-import { ev, fmtDate, hue, initials, isAdminView, me } from "@/lib/model";
-import { boot } from "@/lib/session";
+import { useApp, set, type Tab } from "@/lib/store";
+import { adminClubs, ev, eventCode, hue, initials, isAdminView, isClubOwner, me } from "@/lib/model";
+import { boot, joinByCode, switchClub } from "@/lib/session";
 import { organizerSignIn } from "@/lib/actions";
 import { alertPrefs, applyWake, primeAudio } from "@/lib/alerts";
-import { Icon, Logo, type IconName } from "./ui";
+import { Icon, NameStory, type IconName } from "./ui";
+import { InstallPrompt } from "./InstallPrompt";
 import { Overlays } from "./Overlays";
 import { EventPage } from "./pages/EventPage";
 import { PeoplePage, PlayersPage } from "./pages/PlayersPage";
@@ -26,16 +27,16 @@ function tabsFor(S: S): [Tab, string, IconName][] {
 }
 
 function TopBar() {
-  const S = useApp(), e = ev(S), m = me(S), admin = isAdminView(S);
+  const S = useApp(), m = me(S), admin = isAdminView(S);
   return (
     <header className="top">
       <div className="wrap wide top-row">
-        <span className="logo" aria-label="OurKitchen"><Logo /><b>Our<i>Kitchen</i></b></span>
-        <div className="top-title"><span>{e ? fmtDate(e.date) : ""}</span></div>
+        <span className="logo" aria-label="Qsina"><img src="/logo.png" alt="" width={51} height={36} /><b><i>sina</i></b></span>
         <div className="top-actions">
           {S.unlocked ? <button className="iconpill" onClick={() => { set({ preview: !S.preview, tab: null, ciJustDone: false }); window.scrollTo(0, 0); }} title="Switch between admin and player view"><Icon n="eye" /><span className="lbl">{S.preview ? "Admin view" : "Player view"}</span></button> : null}
           {admin && S.ready && !S.offline && !S.creating ? <button className="plus-btn" onClick={() => { set({ creating: true, team: false }); window.scrollTo(0, 0); }} aria-label="New event" title="New event"><Icon n="plus" /></button> : null}
-          {S.isOwner && !S.team ? <button className="iconpill" onClick={() => { set({ team: true, creating: false }); window.scrollTo(0, 0); }} title="Manage admins" aria-label="Manage admins"><Icon n="users" /><span className="lbl">Admins</span></button> : null}
+          {S.unlocked && isClubOwner(S) && !S.team ? <button className="iconpill" onClick={() => { set({ team: true, creating: false }); window.scrollTo(0, 0); }} title="Club owners and admins" aria-label="Club"><Icon n="users" /><span className="lbl">Club</span></button> : null}
+          {!S.unlocked && adminClubs(S).length ? <button className="iconpill" onClick={() => { switchClub(adminClubs(S)[0].id); window.scrollTo(0, 0); }} title="Back to the club you run"><Icon n="home" /><span className="lbl">My club</span></button> : null}
           {!admin && m ? <span className={`av c${hue(m.id)}`} title={m.name} style={{ width: 40, height: 40 }}>{initials(m.name)}</span> : null}
         </div>
       </div>
@@ -43,33 +44,28 @@ function TopBar() {
   );
 }
 
-type BIP = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
-function InstallPrompt() {
-  const [evt, setEvt] = useState<BIP | null>(null);
-  const [ios, setIos] = useState(false);
-  const [hidden, setHidden] = useState(true);
-  useEffect(() => {
-    const standalone = matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone;
-    if (standalone || ls.get("install.dismissed", false)) return;
-    setHidden(false);
-    const ua = navigator.userAgent;
-    setIos(/iphone|ipad|ipod/i.test(ua) && /safari/i.test(ua) && !/crios|fxios/i.test(ua));
-    const h = (e: Event) => { e.preventDefault(); setEvt(e as BIP); };
-    window.addEventListener("beforeinstallprompt", h);
-    return () => window.removeEventListener("beforeinstallprompt", h);
-  }, []);
-  if (hidden || (!evt && !ios)) return null;
-  const dismiss = () => { ls.set("install.dismissed", true); setHidden(true); };
+/** For phones that can't scan: the code printed under the QR code ("Event QMTCV5DN") opens the event too. */
+function EventCode() {
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const go = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim()) return;
+    setBusy(true);
+    setErr(null);
+    if (!(await joinByCode(code))) setErr("No event with that code. Check the letters under the QR code.");
+    setBusy(false);
+  };
   return (
-    <div className="install" role="region" aria-label="Install the app">
-      <span className="sq" style={{ width: 40, height: 40 }}><Icon n="download" /></span>
-      <div style={{ minWidth: 0 }}>
-        <b>Get the app</b>
-        <p>{evt ? "Add OurKitchen to your home screen for full-screen court alerts." : <>Tap <Icon n="share" cls="inline" /> Share, then <b style={{ display: "inline", fontFamily: "inherit", fontSize: "inherit", textTransform: "none" }}>Add to Home Screen</b>.</>}</p>
-      </div>
-      {evt ? <button className="btn sm dark" onClick={async () => { await evt.prompt(); await evt.userChoice; setEvt(null); setHidden(true); }}>Install</button>
-        : <button className="x" onClick={dismiss} aria-label="Dismiss">✕</button>}
-    </div>
+    <form className="card" onSubmit={go}>
+      <div className="field"><label htmlFor="ev-code">Or type the event code</label>
+        <input id="ev-code" type="text" autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="go"
+          placeholder="e.g. QMTCV5DN" value={code} onChange={(e) => setCode(e.target.value)} /></div>
+      <p className="small muted">It&apos;s printed under the QR code, after “Event”.</p>
+      {err ? <div className="notice" role="alert">{err}</div> : null}
+      <button className="btn dark block" type="submit" disabled={busy}>{busy ? "Opening…" : "Open event"}</button>
+    </form>
   );
 }
 
@@ -86,7 +82,9 @@ function Page() {
     return (
       <div className="view">
         <div className="empty"><span className="sq dark"><Icon n="qr" /></span><h2>Scan the QR code at your event</h2><p>Your organizer has a check-in code at the front desk. Scan it with your phone camera to join.</p></div>
-        <InstallPrompt />
+        <EventCode />
+        <InstallPrompt stage="before" />
+        <NameStory />
         {S.unlocked ? null : <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>}
         {S.mode === "local" ? <p className="mode-note">Demo mode: data stays in this browser. Sign in as organizer to create an event.</p> : null}
       </div>
@@ -97,7 +95,7 @@ function Page() {
   const P = { event: EventPage, players: PlayersPage, courts: CourtsPage, bracket: BracketPage, results: ResultsPage, photos: PhotosPage, people: PeoplePage }[S.tab || "courts"] || CourtsPage;
   return (
     <>
-      {!admin && S.tab === "courts" ? <div style={{ marginBottom: 18 }}><InstallPrompt /></div> : null}
+      {!admin && S.tab === "courts" ? <div style={{ marginBottom: 18 }}><InstallPrompt stage="after" /></div> : null}
       <P e={e} />
     </>
   );
@@ -124,6 +122,14 @@ export default function App() {
       window.removeEventListener("offline", on);
     };
   }, []);
+
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) return;
+    link.dataset.base ||= link.getAttribute("href") || "/manifest.webmanifest";
+    const e = ev(S);
+    link.href = e && !isAdminView(S) ? `/m/${eventCode(e)}` : link.dataset.base;
+  }, [S.eventId, S.events, S.unlocked, S.preview]);
 
   useEffect(() => {
     applyWake(wantWake);
