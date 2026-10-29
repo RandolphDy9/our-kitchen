@@ -58,8 +58,10 @@ export function recomputeRole() {
 }
 
 /** Each club's member list, kept live, so roles update the moment someone is added or removed. */
-function watchMembers(clubs: Club[]) {
-  const b = backend(), ids = new Set(clubs.map((c) => c.id));
+/** Admin lists for every club in view: the clubs this person can read, plus the club of each event they can see
+    (a player made admin can't read the club itself yet, and an event's club record may be missing). */
+function watchMembers() {
+  const S = get(), b = backend(), ids = new Set([...S.clubs.map((c) => c.id), ...S.events.map(clubOf)]);
   for (const [id, off] of memberSubs) if (!ids.has(id)) { off(); memberSubs.delete(id); }
   for (const id of ids) {
     if (memberSubs.has(id)) continue;
@@ -106,13 +108,14 @@ export async function boot() {
   b.subscribe("clubs", (docs) => {
     const clubs = (docs as Club[]).sort((a, c) => (a.name || "").localeCompare(c.name || ""));
     set({ clubs });
-    watchMembers(clubs);
+    watchMembers();
     recomputeRole();
   }, () => {});
   b.subscribe("events", (docs) => {
     const events = (docs as AppState["events"]).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
     const S = get();
     set({ events, ready: true });
+    watchMembers();
     let next = events.some((e) => e.id === S.eventId) ? S.eventId : null;
     // A player reopening the app on a later day starts at Scan, not on last week's event ("Back to" it is offered there).
     if (next && !S.unlocked && !S.fromQR && (events.find((e) => e.id === next)!.date || "") < todayISO()) next = null;
