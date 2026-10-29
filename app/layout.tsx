@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Qsina",
   description: "Qsina (koo-SEE-nah) queues up your pickleball tournament: check-in, live courts, playoffs and photos.",
   applicationName: "Qsina",
+  manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Qsina", statusBarStyle: "default" },
   formatDetection: { telephone: false },
   icons: {

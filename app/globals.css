@@ -700,3 +700,12 @@ body::before{display:none}
 .gate svg.i.inline{width:16px;height:16px;vertical-align:-3px}
 .gate-go{padding:0 18px 18px}
 .gate-note{text-align:center}
+
+/* Scan the event QR code (in the app) */
+.empty .btn.block{width:100%;margin-top:6px}
+.scan{position:fixed;inset:0;z-index:60;background:#000;display:grid}
+.scan video{width:100%;height:100%;object-fit:cover;grid-area:1/1}
+.scan-frame{grid-area:1/1;place-self:center;width:min(68vw,280px);aspect-ratio:1;border:3px solid var(--lime);box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+.scan-bar{grid-area:1/1;align-self:end;display:grid;gap:12px;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:var(--ink);color:var(--on-black);border-top:2px solid var(--lime)}
+.scan-bar p{font-weight:600;text-align:center}
+.scan-bar .btn{background:var(--card);color:var(--ink);border:var(--b)}

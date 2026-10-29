@@ -69,8 +69,10 @@ function watchMembers(clubs: Club[]) {
 export async function boot() {
   if (booted) return;
   booted = true;
-  const h = location.hash.slice(1);
-  if (h.startsWith("in-")) set({ eventId: h.slice(3), fromQR: true });
+  // Check-in links are /in/{code}; QR codes printed before that use /#in-{code}.
+  const h = location.hash.slice(1), path = location.pathname.match(/^\/in\/([a-z0-9]+)\/?$/i);
+  if (path) set({ eventId: path[1].toLowerCase(), fromQR: true });
+  else if (h.startsWith("in-")) set({ eventId: h.slice(3), fromQR: true });
   let b;
   try {
     b = await loadBackend();
@@ -108,6 +110,8 @@ export async function boot() {
     const S = get();
     set({ events, ready: true });
     let next = events.some((e) => e.id === S.eventId) ? S.eventId : null;
+    // A player reopening the app on a later day starts at Scan, not on last week's event ("Back to" it is offered there).
+    if (next && !S.unlocked && !S.fromQR && (events.find((e) => e.id === next)!.date || "") < todayISO()) next = null;
     if (!next && S.unlocked && !S.fromQR) next = events.find((e) => clubOf(e) === S.clubId)?.id || null;
     // A Home Screen app opens at "/" with its own storage. With exactly one event today, open it;
     // with more (several clubs playing), players use their event's QR code or link.
@@ -174,6 +178,12 @@ export async function joinByCode(raw: string) {
   set({ fromQR: true, team: false, preview: !!get().unlocked });
   selectEvent(id);
   return true;
+}
+
+/** Reopen an event this phone already joined (the "Back to" link on the Scan screen). */
+export function openEvent(id: string) {
+  set({ fromQR: true, team: false });
+  selectEvent(id);
 }
 
 /** Switch the admin screens to another club the person runs, opening its newest event (or none yet). */

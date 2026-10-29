@@ -6,7 +6,7 @@ import { manifestFor } from "@/lib/manifest";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[a-z0-9]{4,40}$/.test(id)) return new Response("Not found", { status: 404 });
-  return new Response(JSON.stringify(manifestFor(`/#in-${id}`)), {
+  return new Response(JSON.stringify(manifestFor(`/in/${id}`)), {
     headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=86400" },
   });
 }

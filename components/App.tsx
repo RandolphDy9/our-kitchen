@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useApp, set, type Tab } from "@/lib/store";
+import { useApp, set, ls, type Tab } from "@/lib/store";
 import { adminClubs, ev, eventCode, hue, initials, isAdminView, isClubOwner, me } from "@/lib/model";
-import { boot, joinByCode, switchClub } from "@/lib/session";
+import { boot, joinByCode, openEvent, switchClub } from "@/lib/session";
 import { organizerSignIn } from "@/lib/actions";
 import { alertPrefs, applyWake, primeAudio } from "@/lib/alerts";
 import { Icon, NameStory, type IconName } from "./ui";
 import { GetTheApp, InstallPrompt, useMustInstall } from "./InstallPrompt";
+import { ScanQR } from "./ScanQR";
 import { Overlays } from "./Overlays";
 import { EventPage } from "./pages/EventPage";
 import { PeoplePage, PlayersPage } from "./pages/PlayersPage";
@@ -79,10 +80,12 @@ function Page() {
   const e = ev(S), admin = isAdminView(S);
   if (!e) {
     if (admin) return <CreateEventPage first />;
+    const last = S.events.find((x) => x.id === ls.get<string | null>("lastEvent", null));
     return (
       <div className="view">
-        <div className="empty"><span className="sq dark"><Icon n="qr" /></span><h2>Scan the QR code at your event</h2><p>Your organizer has a check-in code at the front desk. Scan it with your phone camera to join.</p></div>
+        <div className="empty"><span className="sq dark"><Icon n="qr" /></span><h2>Scan the QR code at your event</h2><p>Your organizer has a check-in code at the front desk. Scan it to join.</p><ScanQR /></div>
         <EventCode />
+        {last ? <button className="btn ghost" onClick={() => openEvent(last.id)}>Back to {last.name}</button> : null}
         <InstallPrompt stage="before" />
         <NameStory />
         {S.unlocked ? null : <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>}

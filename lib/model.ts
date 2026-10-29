@@ -322,4 +322,4 @@ export const paths = {
 };
 export const eventCode = (e: { id: string; code?: string }) => e.code || e.id;
 export const checkinLink = (e: { id: string; code?: string }) =>
-  (typeof location !== "undefined" ? location.origin : "") + "/#in-" + eventCode(e);
+  (typeof location !== "undefined" ? location.origin : "") + "/in/" + eventCode(e);
