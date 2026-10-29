@@ -129,16 +129,16 @@ main{padding-block:6px calc(120px + env(safe-area-inset-bottom,0px))}
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:var(--b);background:var(--card);padding:9px 18px;border-radius:999px;font-weight:700;cursor:pointer;min-height:44px;font-size:.9rem}
-.btn:hover{background:var(--card-2)}
+@media (hover:hover){.btn:hover{background:var(--card-2)}}
 .btn.dark{background:var(--black);color:var(--on-black);border-color:var(--black)}
-.btn.dark:hover{background:#2c2c2c}
+@media (hover:hover){.btn.dark:hover{background:#2c2c2c}}
 .btn.dark:not(.sm){padding-right:6px;justify-content:space-between;gap:14px}
 .btn.dark:not(.sm)::after{content:"→";width:34px;height:34px;border-radius:50%;background:var(--lime);color:var(--ink);display:grid;place-items:center;font-size:1rem;flex:none}
 .btn.dark:not(.sm) > svg.i:first-child{display:none}
 .btn.lime{background:var(--lime)}
 .btn.soft{background:var(--card)}
 .btn.ghost{background:none;border-color:transparent;color:var(--muted)}
-.btn.ghost:hover{color:var(--ink);background:none}
+@media (hover:hover){.btn.ghost:hover{color:var(--ink);background:none}}
 .btn.danger{color:var(--danger);border-color:var(--danger)}
 .btn.sm{padding:5px 14px;min-height:40px;font-size:.82rem}
 .btn.block{width:100%}
@@ -353,7 +353,7 @@ td:first-child{font-weight:700}
 .splash .meta{display:grid;gap:2px;font-size:.82rem;font-weight:700}
 .pick{display:grid;gap:8px}
 .pick button{display:flex;align-items:center;gap:12px;text-align:left;padding:8px 12px;border-radius:var(--r);border:var(--b);background:var(--card);cursor:pointer;font-weight:700}
-.pick button:hover{background:var(--lime)}
+@media (hover:hover){.pick button:hover{background:var(--lime)}}
 .pick button .grow{flex:1;min-width:0;overflow-wrap:anywhere}
 .card.done{display:grid;justify-items:center;text-align:center;gap:10px;padding:28px 18px}
 .done-badge{width:88px;height:88px;border-radius:50%;background:var(--lime);border:var(--b);display:grid;place-items:center}
@@ -420,7 +420,7 @@ h1,h2,h3{text-transform:uppercase;letter-spacing:.005em;line-height:1.02}
 .logo b{font-family:var(--f-display);text-transform:uppercase;font-size:1.35rem;letter-spacing:.02em}
 .btn{text-transform:uppercase;letter-spacing:.05em;font-size:.78rem}
 .btn.dark{background:var(--lime);color:var(--ink);border:var(--b);box-shadow:4px 4px 0 var(--ink)}
-.btn.dark:hover{background:var(--lime-2)}
+@media (hover:hover){.btn.dark:hover{background:var(--lime-2)}}
 .btn.dark:not(.sm){padding-right:0;gap:14px}
 .btn.dark:not(.sm)::after{background:var(--ink);color:var(--lime);width:46px;height:auto;align-self:stretch;margin:-9px 0;font-size:1.25rem}
 .btn.dark:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
@@ -472,7 +472,7 @@ h1,h2,h3{text-transform:uppercase;letter-spacing:.005em;line-height:1.02}
 .ct{font-family:var(--f-display);text-transform:uppercase;font-weight:700;font-size:.85rem;letter-spacing:.06em}
 .bm{display:block;width:100%;text-align:left;border:2px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);padding:0;font:inherit;color:inherit}
 button.bm{cursor:pointer}
-button.bm:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+@media (hover:hover){button.bm:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}}
 .bm.sel{outline:3px solid var(--lime);outline-offset:3px}
 .bm.final{border-width:3px;box-shadow:6px 6px 0 var(--lime),6px 6px 0 2px var(--ink)}
 .bm-h{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 8px;background:var(--ink);color:#ffffff;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
@@ -634,7 +634,7 @@ body::before{display:none}
 .sel-btn > span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sel-btn > .sel-ph{color:var(--muted)}
 .sel-btn svg.i{width:20px;height:20px;stroke-width:2.5}
-.sel-btn:hover{background:var(--card-2)}
+@media (hover:hover){.sel-btn:hover{background:var(--card-2)}}
 .sel-btn:focus{outline:none;box-shadow:0 0 0 3px var(--lime)}
 .sel.open .sel-btn{box-shadow:4px 4px 0 var(--ink)}
 .sel.open .sel-btn svg.i{transform:rotate(180deg)}

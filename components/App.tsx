@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useApp, set, ls, type Tab } from "@/lib/store";
 import { adminClubs, ev, eventCode, hue, initials, isAdminView, isClubOwner, me } from "@/lib/model";
 import { boot, joinByCode, openEvent, switchClub } from "@/lib/session";
@@ -157,6 +157,10 @@ export default function App() {
   useEffect(() => {
     if (tabs.length && !tabs.some((t) => t[0] === S.tab)) set({ tab: tabs[0][0], scoring: null });
   }, [tabs, S.tab]);
+
+  // Every new screen starts at the top: check-in to "You're in", tabs, court views, the admin screens.
+  const screen = [S.eventId, isAdminView(S), S.signingIn, S.team, S.creating, me(S)?.id, S.ciJustDone, S.tab, S.cview].join("|");
+  useLayoutEffect(() => window.scrollTo(0, 0), [screen]);
 
   return (
     <>
