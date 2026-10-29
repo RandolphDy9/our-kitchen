@@ -17,7 +17,7 @@ export function ScanQR() {
   const [open, setOpen] = useState(false);
   const [can, setCan] = useState(false);
   const close = useCallback(() => setOpen(false), []);
-  useEffect(() => setCan(!!navigator.mediaDevices?.getUserMedia), []);
+  useEffect(() => { setCan(!!navigator.mediaDevices?.getUserMedia); }, []);
   if (!can) return null;
   return (
     <>

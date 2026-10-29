@@ -36,7 +36,7 @@ const isStandalone = () => matchMedia("(display-mode: standalone)").matches || !
     null until the first render on the device, so the server-rendered page doesn't guess. */
 export function useMustInstall(): boolean | null {
   const [must, setMust] = useState<boolean | null>(null);
-  useEffect(() => setMust(!isStandalone() && platform() !== "other"), []);
+  useEffect(() => { setMust(!isStandalone() && platform() !== "other"); }, []);
   return must;
 }
 
@@ -199,7 +199,7 @@ export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
 export function GetTheAppCard() {
   const { kind, evt, installed, install } = useInstall();
   const [show, setShow] = useState(false);
-  useEffect(() => setShow(!isStandalone()), []);
+  useEffect(() => { setShow(!isStandalone()); }, []);
   if (!kind || !show || kind === "other") return null;
   return (
     <section className="card welcome gate" aria-labelledby="gta-h">

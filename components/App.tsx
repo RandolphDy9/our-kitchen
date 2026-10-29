@@ -160,7 +160,7 @@ export default function App() {
 
   // Every new screen starts at the top: check-in to "You're in", tabs, court views, the admin screens.
   const screen = [S.eventId, isAdminView(S), S.signingIn, S.team, S.creating, me(S)?.id, S.ciJustDone, S.tab, S.cview].join("|");
-  useLayoutEffect(() => window.scrollTo(0, 0), [screen]);
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, [screen]);
 
   return (
     <>
