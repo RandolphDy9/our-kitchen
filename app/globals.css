@@ -710,3 +710,8 @@ body::before{display:none}
 .scan-bar{grid-area:1/1;align-self:end;display:grid;gap:12px;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:var(--ink);color:var(--on-black);border-top:2px solid var(--lime)}
 .scan-bar p{font-weight:600;text-align:center}
 .scan-bar .btn{background:var(--card);color:var(--ink);border:var(--b)}
+
+/* Import preview: games the file had that won't be imported */
+.imp-skipped{display:grid;gap:8px;background:#fff1ef;border-color:var(--danger)}
+.imp-skipped ul{margin:0;padding-left:18px;max-height:180px;overflow-y:auto}
+.imp-skipped a{color:var(--ink);font-weight:700}

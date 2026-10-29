@@ -8,6 +8,7 @@ import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
 import { addAdmin, addOwner, createClub, createEvent, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
+import { ImportNotes, TEMPLATE_URL, importReady } from "../ImportNotes";
 
 export function SignInPage() {
   const [email, setEmail] = useState("");
@@ -51,10 +52,12 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
   const [manual, setManual] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [skipOk, setSkipOk] = useState(false);
   const up = <K extends keyof EventDraft>(k: K, v: EventDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const cancel = () => set({ creating: false });
   const use = (p: Parsed, file: string, title: string) => {
     setParsed(p);
+    setSkipOk(false);
     setFileName(file);
     setD((x) => ({ ...x, name: title || x.name, start: p.start || x.start, end: p.end || x.end, courts: Math.max(p.courts, 1) }));
   };
@@ -79,6 +82,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
     const msg = !x.name ? "Give the event a name." : !x.date ? "Pick a date." : !x.start || !x.end ? "Set a start and end time."
       : x.end <= x.start ? "The end time has to be after the start time." : !(x.courts >= 1 && x.courts <= 40) ? "Courts must be between 1 and 40." : null;
     if (msg) return setErr(msg);
+    if (!importReady(parsed, skipOk)) return setErr("Some games couldn't be read. Fix the file, or tick “Import without” above.");
     setErr(null);
     // Selecting the new event remounts this page, so progress lives in the store.
     set({ creating: true, createMsg: "Creating the event…" });
@@ -117,6 +121,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
       <section className="card">
         <div className="sec-head"><h2>Tournament schedule</h2><span className="pill">Excel</span></div>
         <p className="small muted">A time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”.</p>
+        <p className="small"><a href={TEMPLATE_URL} download>Download the Qsina template (.xlsx)</a> to see the format, or fill in your games there.</p>
         {err ? <div className="notice" role="alert">{err}</div> : null}
         {pick("Upload schedule (.xlsx)", true)}
         {S.mode === "local" ? <button className="btn ghost block" onClick={onSample}>Try a sample schedule</button> : null}
@@ -137,7 +142,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
             <div><b>{parsed.divs.length}</b><span>Divisions</span></div>
             <div><b>{parsed.sched.length}</b><span>Games · {parsed.sched.length - pool} playoff</span></div>
           </div>
-          {parsed.warnings.length ? <details><summary>{parsed.warnings.length} note{parsed.warnings.length > 1 ? "s" : ""} from the file</summary><ul className="small">{parsed.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></details> : null}
+          <ImportNotes p={parsed} ok={skipOk} setOk={setSkipOk} />
           {pick("Choose a different file", false)}
         </section>
       ) : null}
@@ -159,7 +164,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
           </fieldset>
         )}
         {err ? <div className="notice" role="alert">{err}</div> : null}
-        <button className="btn dark block" type="submit">{parsed ? "Create event and import schedule" : "Create event"}</button>
+        <button className="btn dark block" type="submit" disabled={!importReady(parsed, skipOk)}>{parsed ? "Create event and import schedule" : "Create event"}</button>
         <button className="btn ghost block" type="button" onClick={() => { setManual(false); setParsed(null); setErr(null); }}>{parsed ? "Start over" : "Back to upload"}</button>
       </form>
     </div>

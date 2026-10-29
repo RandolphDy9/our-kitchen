@@ -11,6 +11,7 @@ import type { EventDoc, Reaction } from "@/lib/types";
 import { Hero, ActivityFeed, PulseCard } from "../widgets";
 import { Icon, Stat } from "../ui";
 import { Select } from "../Select";
+import { ImportNotes, TEMPLATE_URL, importReady } from "../ImportNotes";
 
 export function Tiles() {
   const S = useApp();
@@ -112,7 +113,7 @@ function QRCard({ e }: { e: EventDoc }) {
   );
 }
 
-type Imp = { busy?: boolean; msg?: string; error?: string; parsed?: Parsed; fileName?: string; title?: string; opts?: { updateEvent: boolean; replace: boolean } };
+type Imp = { busy?: boolean; msg?: string; error?: string; parsed?: Parsed; skipOk?: boolean; fileName?: string; title?: string; opts?: { updateEvent: boolean; replace: boolean } };
 function ImportCard() {
   const S = useApp();
   const [I, setI] = useState<Imp>({});
@@ -195,10 +196,10 @@ function ImportCard() {
           {p.divs.map((d) => <tr key={d.id}><td>{divName(d)}</td><td>{d.teams.length}</td><td>{d.pools.length ? d.pools.join(", ") : "Round robin"}</td><td>{flow(d.id)}</td></tr>)}
         </tbody></table></div>
         {unk.length ? <div className="notice">We couldn&apos;t tell if these players are men or women: <b>{unk.map((x) => x.name).join(", ")}</b>. Set them in Players after importing.</div> : null}
-        {p.warnings.length ? <details><summary>{p.warnings.length} note{p.warnings.length > 1 ? "s" : ""} from the file</summary><ul className="small">{p.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></details> : null}
+        <ImportNotes p={p} ok={!!I.skipOk} setOk={(v) => setI({ ...I, skipOk: v })} />
         <label className="check"><input type="checkbox" checked={opts.updateEvent} onChange={(e) => setI({ ...I, opts: { ...opts, updateEvent: e.target.checked } })} /> Update event name, times and courts{I.title ? ` (“${I.title}”)` : ""}</label>
         {has ? <label className="check"><input type="checkbox" checked={opts.replace} onChange={(e) => setI({ ...I, opts: { ...opts, replace: e.target.checked } })} /> Replace the schedule already in this event</label> : null}
-        <button className="btn dark block" onClick={run}>Import into this event</button>
+        <button className="btn dark block" onClick={run} disabled={!importReady(p, !!I.skipOk)}>Import into this event</button>
         {pick}
       </>
     );
@@ -226,6 +227,7 @@ function ImportCard() {
     <section className="card" ref={cardRef} style={{ scrollMarginTop: 84 }}>
       <div className="sec-head"><h2>Import tournament schedule</h2><span className="pill">Excel</span></div>
       <p className="small muted">Upload the schedule your admins built: a time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”. Qsina creates the players, divisions, pools, playoff games and court times for this event.</p>
+      <p className="small"><a href={TEMPLATE_URL} download>Download the Qsina template (.xlsx)</a> to see the format.</p>
       {body}
     </section>
   );

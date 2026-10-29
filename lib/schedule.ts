@@ -17,7 +17,8 @@ export type ParsedSched = {
   slot: number; time: string; end: string; court: number; a: SRef; b: SRef; label: string;
 };
 export type Parsed = {
-  players: ParsedPlayer[]; divs: ParsedDiv[]; sched: ParsedSched[]; warnings: string[]; courts: number;
+  /** skipped: games in the file that won't be imported. warnings: everything else worth a look. */
+  players: ParsedPlayer[]; divs: ParsedDiv[]; sched: ParsedSched[]; skipped: string[]; warnings: string[]; courts: number;
   courtNames: Record<number, string>; start: string | null; end: string | null; slots: number;
 };
 
@@ -94,7 +95,7 @@ type PDiv = { key: string; cat: Cat | null; level: string; teams: Map<string, PT
 type PPlayer = { key: string; variants: Record<string, number>; g: { M?: number; F?: number } };
 
 export function parseSchedule(rows: Cell[][]): Parsed {
-  const warnings: string[] = [], hi = impFindHeader(rows);
+  const skipped: string[] = [], warnings: string[] = [], hi = impFindHeader(rows);
   if (hi < 0) throw new Error("Couldn't find a header row with court columns (like “Court 1”, “Court 2”).");
   const head = rows[hi], cols: { ci: number; court: number }[] = [], courtNames: Record<number, string> = {};
   head.forEach((h, ci) => {
@@ -143,11 +144,11 @@ export function parseSchedule(rows: Cell[][]): Parsed {
       if (!txt || (IMP_SKIP.test(txt.split(/\n/)[0].trim()) && !/\bvs\b/i.test(txt))) continue;
       const c = impCell(txt), at = { slot, time: tm.start, end: tm.end, court };
       const short = txt.replace(/\s+/g, " ").slice(0, 60);
-      if (c.kind === "unknown") { warnings.push(`Skipped ${tm.start} Court ${court}: “${short}”`); continue; }
-      if (!c.div.cat) { warnings.push(`Couldn't tell the division for ${tm.start} Court ${court}: “${short}”`); continue; }
+      if (c.kind === "unknown") { skipped.push(`${tm.start} Court ${court}: couldn't read “${short}”`); continue; }
+      if (!c.div.cat) { skipped.push(`${tm.start} Court ${court}: couldn't tell the division of “${short}”`); continue; }
       const dv = getDiv(c.div);
       if (c.kind === "pool") {
-        if (c.A.length !== 2 || c.B.length !== 2) { warnings.push(`${tm.start} Court ${court}: expected two players per team in “${short}”`); continue; }
+        if (c.A.length !== 2 || c.B.length !== 2) { skipped.push(`${tm.start} Court ${court}: expected two players per team in “${short}”`); continue; }
         if (c.pool) dv.pools.add(c.pool);
         dv.games.push({ ...at, pool: c.pool, ta: addTeam(dv, c.A, c.pool), tb: addTeam(dv, c.B, c.pool) });
       } else dv.po.push({ ...at, ...c });
@@ -206,7 +207,7 @@ export function parseSchedule(rows: Cell[][]): Parsed {
     const id = "d" + (++di);
     const teams = [...dv.teams.values()].map((t, i) => ({ id: id + "t" + (i + 1), key: t.key, players: t.players, pool: t.pool, label: t.label }));
     const tid = (k: string) => teams.find((t) => t.key === k)!.id;
-    if (!teams.length) { warnings.push(`${dv.level} ${dv.cat}: playoff games found but no teams, skipped.`); continue; }
+    if (!teams.length) { skipped.push(`${dv.level} ${dv.cat}: playoff games but no teams in this division`); continue; }
     const pools = [...dv.pools].sort();
     outDivs.push({ id, cat: dv.cat!, level: dv.level, pools, teams: teams.map(({ key: _k, ...t }) => t) });
     dv.games.forEach((g, i) => outSched.push({ id: id + "g" + (i + 1), div: id, stage: "pool", key: null, pool: g.pool, slot: g.slot, time: g.time, end: g.end, court: g.court, a: { t: tid(g.ta) }, b: { t: tid(g.tb) }, label: g.pool ? `Pool ${g.pool}` : "Round robin" }));
@@ -214,13 +215,13 @@ export function parseSchedule(rows: Cell[][]): Parsed {
     const pref = (tok: string): SRef => (/^QF/.test(tok) ? { w: "q" + tok.slice(2) } : { pool: tok[0], rank: +tok[1] });
     po.filter((p) => p.stage === "qf").forEach((p) => {
       const k = "q" + (p.qf || 1);
-      if (p.toks.length < 2) { warnings.push(`${p.time} Court ${p.court}: couldn't read the quarterfinal matchup.`); return; }
+      if (p.toks.length < 2) { skipped.push(`${p.time} Court ${p.court}: couldn't read the quarterfinal matchup`); return; }
       outSched.push({ id: id + k, div: id, stage: "qf", key: k, slot: p.slot, time: p.time, end: p.end, court: p.court, a: pref(p.toks[0]), b: pref(p.toks[1]), label: "QF" + (p.qf || 1) });
     });
     const sfSorted = [...sfs].sort((x, y) => (x.toks.some((t) => t === "QF1" || t === "A1") ? -1 : 0) - (y.toks.some((t) => t === "QF1" || t === "A1") ? -1 : 0));
     sfSorted.slice(0, 2).forEach((p, i) => {
       const k = "s" + (i + 1);
-      if (p.toks.length < 2) { warnings.push(`${p.time} Court ${p.court}: couldn't read the semifinal matchup.`); return; }
+      if (p.toks.length < 2) { skipped.push(`${p.time} Court ${p.court}: couldn't read the semifinal matchup`); return; }
       outSched.push({ id: id + k, div: id, stage: "sf", key: k, slot: p.slot, time: p.time, end: p.end, court: p.court, a: pref(p.toks[0]), b: pref(p.toks[1]), label: "SF" + (i + 1) });
     });
     const hasSF = sfSorted.length >= 2;
@@ -231,7 +232,7 @@ export function parseSchedule(rows: Cell[][]): Parsed {
     if (hasQF && sfs.length < 2) warnings.push(`${dv.level} ${dv.cat}: has quarterfinals but not two semifinals.`);
   }
   const courts = Math.max(0, ...cols.map((c) => c.court));
-  return { players: outPlayers, divs: outDivs, sched: outSched, warnings, courts, courtNames, start: slots[0]?.start || null, end: slots.at(-1)?.end || null, slots: slots.length };
+  return { players: outPlayers, divs: outDivs, sched: outSched, skipped, warnings, courts, courtNames, start: slots[0]?.start || null, end: slots.at(-1)?.end || null, slots: slots.length };
 }
 
 /** Reads an .xlsx/.xls/.csv file and parses the first sheet that has court columns. */
