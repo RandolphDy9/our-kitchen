@@ -113,9 +113,8 @@ const Step = ({ ic, title, children }: { ic: ReactNode; title: string; children?
 );
 const AppIcon = <img src="/icons/icon-192.png" alt="" width={48} height={48} />;
 
-/** The only page a phone sees in a browser tab: install Qsina, then check in from the app.
-    The app opens on this event: its manifest's start_url carries the event's check-in code (app/m/[id]). */
-export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
+/** Installing on this phone: its platform, Chrome's one-tap offer, and whether it was just installed. */
+function useInstall() {
   const [evt, setEvt] = useState<BIP | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -127,7 +126,6 @@ export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
     window.addEventListener("appinstalled", done);
     return () => { waiting.delete(setEvt); window.removeEventListener("appinstalled", done); };
   }, []);
-  if (!kind) return null;
   const install = async () => {
     if (!evt) return;
     await evt.prompt();
@@ -135,39 +133,50 @@ export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
     deferred = null;
     setEvt(null);
   };
-  const open = <Step ic={AppIcon} title="Open Qsina">From your {kind === "android" ? "home screen" : "Home Screen"}. It opens right on this event.</Step>;
-  const pick = <Step ic={<Icon n="check" />} title="Check in">Find your name and tap <em>Yes, check me in</em>.</Step>;
+  return { kind, evt, installed, install };
+}
 
-  let steps;
-  if (installed) steps = <>{open}{pick}</>;
-  else if (kind === "ios") steps = (
+/** The numbered steps for the phone in hand, ending with what to do in the app. */
+function InstallSteps({ kind, evt, installed, onEvent }: { kind: Kind; evt: BIP | null; installed: boolean; onEvent: boolean }) {
+  const open = <Step ic={AppIcon} title="Open Qsina">From your {kind === "android" ? "home screen" : "Home Screen"}.{onEvent ? " It opens right on this event." : ""}</Step>;
+  const last = onEvent
+    ? <Step ic={<Icon n="check" />} title="Check in">Find your name and tap <em>Yes, check me in</em>.</Step>
+    : <Step ic={<Icon n="qr" />} title="Scan the QR code">Tap <em>Scan the QR code</em> in the app and point it at the code at the front desk.</Step>;
+  if (installed) return <>{open}{last}</>;
+  if (kind === "ios") return (
     <>
       <Step ic={<Icon n="share" />} title="Tap Share"><Icon n="share" cls="inline" /> is at the bottom in Safari, or top right in Chrome.</Step>
       <Step ic={<Icon n="plus" />} title="Add to Home Screen">Scroll down the list to find it, then tap <em>Add</em>.</Step>
-      {open}{pick}
+      {open}{last}
     </>
   );
-  else if (kind === "ios-inapp") steps = (
+  if (kind === "ios-inapp") return (
     <>
       <Step ic={<Icon n="share" />} title="Open in Safari">Tap <em>•••</em> or <Icon n="share" cls="inline" />, then <em>Open in Safari</em>. Apps like Instagram and Messenger can&apos;t install Qsina.</Step>
       <Step ic={<Icon n="plus" />} title="Add to Home Screen">In Safari, tap <Icon n="share" cls="inline" /> <em>Share</em>, then <em>Add to Home Screen</em> and <em>Add</em>.</Step>
-      {open}{pick}
+      {open}{last}
     </>
   );
-  else if (evt) steps = (
+  if (evt) return (
     <>
       <Step ic={<Icon n="download" />} title="Install Qsina">Tap the button below, then <em>Install</em>.</Step>
-      {open}{pick}
+      {open}{last}
     </>
   );
-  else steps = (
+  return (
     <>
       <Step ic={<b className="dots">⋮</b>} title="Open the menu">Tap <em>⋮</em> at the top right of Chrome.</Step>
       <Step ic={<Icon n="download" />} title="Install app">Tap <em>Install app</em> or <em>Add to Home screen</em>, then <em>Install</em>.</Step>
-      {open}{pick}
+      {open}{last}
     </>
   );
+}
 
+/** The only page a phone sees in a browser tab: install Qsina, then check in from the app.
+    The app opens on this event: its manifest's start_url carries the event's check-in code (app/m/[id]). */
+export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
+  const { kind, evt, installed, install } = useInstall();
+  if (!kind) return null;
   return (
     <div className="view">
       <section className="card welcome gate" aria-labelledby="gate-h">
@@ -177,11 +186,30 @@ export function GetTheApp({ e, ios }: { e: EventDoc; ios?: ReactNode }) {
           <h1 id="gate-h">{installed ? <>You&apos;ve got <mark>Qsina</mark></> : <>Get the app to <mark>check in</mark></>}</h1>
           <p>{installed ? "Now open it from your home screen. Check-in happens in the app." : "Qsina calls you to your court when it's your turn, so check-in happens in the app. Takes about 20 seconds."}</p>
         </header>
-        <ol>{steps}</ol>
+        <ol><InstallSteps kind={kind} evt={evt} installed={installed} onEvent /></ol>
         {evt && !installed ? <div className="gate-go"><button className="btn dark block" onClick={install}>Install Qsina</button></div> : null}
       </section>
       {kind === "ios" || kind === "ios-inapp" ? ios : null}
       <p className="small muted gate-note">Already installed? Open Qsina from your {kind === "android" ? "home screen" : "Home Screen"} instead of this page.</p>
     </div>
+  );
+}
+
+/** "Get the app" on the home page, for phones in a browser tab. Hidden in the app itself and on computers. */
+export function GetTheAppCard() {
+  const { kind, evt, installed, install } = useInstall();
+  const [show, setShow] = useState(false);
+  useEffect(() => setShow(!isStandalone()), []);
+  if (!kind || !show || kind === "other") return null;
+  return (
+    <section className="card welcome gate" aria-labelledby="gta-h">
+      <header>
+        <span className="eyebrow">Before your event</span>
+        <h2 id="gta-h">Get the <mark>app</mark></h2>
+        <p>Players check in from the Qsina app, and it calls you to your court when it&apos;s your turn. Takes about 20 seconds.</p>
+      </header>
+      <ol><InstallSteps kind={kind} evt={evt} installed={installed} onEvent={false} /></ol>
+      {evt && !installed ? <div className="gate-go"><button className="btn dark block" onClick={install}>Install Qsina</button></div> : null}
+    </section>
   );
 }

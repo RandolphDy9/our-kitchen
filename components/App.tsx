@@ -6,7 +6,7 @@ import { boot, joinByCode, openEvent, switchClub } from "@/lib/session";
 import { organizerSignIn } from "@/lib/actions";
 import { alertPrefs, applyWake, primeAudio } from "@/lib/alerts";
 import { Icon, NameStory, type IconName } from "./ui";
-import { GetTheApp, InstallPrompt, useMustInstall } from "./InstallPrompt";
+import { GetTheApp, GetTheAppCard, InstallPrompt, useMustInstall } from "./InstallPrompt";
 import { ScanQR } from "./ScanQR";
 import { Overlays } from "./Overlays";
 import { EventPage } from "./pages/EventPage";
@@ -59,9 +59,9 @@ function EventCode() {
     setBusy(false);
   };
   return (
-    <form className="card" onSubmit={go}>
-      <div className="field"><label htmlFor="ev-code">Or type the event code</label>
-        <input id="ev-code" type="text" autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="go"
+    <form className="card" id="ev-code-form" onSubmit={go}>
+      <div className="field"><label htmlFor="ev-code">Event code</label>
+        <input id="ev-code" autoFocus type="text" autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="go"
           placeholder="e.g. QMTCV5DN" value={code} onChange={(e) => setCode(e.target.value)} /></div>
       <p className="small muted">It&apos;s printed under the QR code, after “Event”.</p>
       {err ? <div className="notice" role="alert">{err}</div> : null}
@@ -72,6 +72,7 @@ function EventCode() {
 
 function Page() {
   const S = useApp(), mustInstall = useMustInstall();
+  const [typing, setTyping] = useState(false);
   if (S.signingIn && !S.unlocked) return <SignInPage />;
   if (S.team) return <TeamPage />;
   if (S.creating) return <CreateEventPage />;
@@ -83,10 +84,11 @@ function Page() {
     const last = S.events.find((x) => x.id === ls.get<string | null>("lastEvent", null));
     return (
       <div className="view">
-        <div className="empty"><span className="sq dark"><Icon n="qr" /></span><h2>Scan the QR code at your event</h2><p>Your organizer has a check-in code at the front desk. Scan it to join.</p><ScanQR /></div>
-        <EventCode />
+        <div className="empty"><span className="sq dark"><Icon n="qr" /></span><h2>Scan the QR code at your event</h2><p>Your organizer has a check-in code at the front desk. Scan it to join.</p><ScanQR />
+          <button className="btn ghost" aria-expanded={typing} aria-controls="ev-code-form" onClick={() => setTyping(!typing)}>{typing ? "Hide the event code" : "Type the event code"}</button></div>
+        {typing ? <EventCode /> : null}
         {last ? <button className="btn ghost" onClick={() => openEvent(last.id)}>Back to {last.name}</button> : null}
-        <InstallPrompt stage="before" />
+        <GetTheAppCard />
         <NameStory />
         {S.unlocked ? null : <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>}
         {S.mode === "local" ? <p className="mode-note">Demo mode: data stays in this browser. Sign in as organizer to create an event.</p> : null}
