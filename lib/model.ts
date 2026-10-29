@@ -91,9 +91,9 @@ export function me(S: S): Player | null {
   if (!S.eventId) return null;
   const mine = S.uid && S.players.find((p) => p.uid === S.uid);
   if (mine) return mine;
-  // Remembered name, unless its check-in has since moved to another app or phone.
+  // Remembered name, while it's still checked in here: not undone by the organizer or moved to another app or phone.
   const p = pById(S, ls.get("me." + S.eventId, ""));
-  return p && (!p.uid || p.uid === S.uid) ? p : null;
+  return p && (!p.uid || p.uid === S.uid) && (p.checkedIn || !S.loaded.checkins) ? p : null;
 }
 export const isAdminView = (S: S) => S.unlocked && !S.preview;
 /** Events made before clubs existed belong to the first club. */

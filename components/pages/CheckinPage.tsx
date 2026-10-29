@@ -23,14 +23,15 @@ function MovePanel({ p, onCancel }: { p: Player; onCancel: () => void }) {
   return (
     <form className="card move-in" onSubmit={go}>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}><Av p={p} /><b style={{ flex: 1, minWidth: 0 }}>{p.name}</b></div>
-      <p className="small"><b>{p.name}</b> is already checked in on another app or phone. If that&apos;s you, open Qsina there (on iPhone, usually Safari), tap <b>Move my check-in</b> on your profile, and enter the code here.</p>
+      <p className="small"><b>{p.name}</b> is already checked in on another app or phone.</p>
+      <div className="move-tip small"><b>Checked in from a Private tab you&apos;ve since closed?</b> That check-in can&apos;t be moved. Ask the organizer at the front desk to undo it, then check in again from a regular tab.</div>
+      <p className="small">Still have the other app or phone? Open Qsina there (on iPhone, usually Safari), tap <b>Move my check-in</b> on your profile, and enter the code here.</p>
       <div className="field"><label htmlFor="mv-code">4-digit code</label>
         <input id="mv-code" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="one-time-code" enterKeyHint="done"
           value={code} onChange={(x) => setCode(x.target.value.replace(/\D/g, "").slice(0, 4))} /></div>
       {err ? <div className="notice" role="alert">{err}</div> : null}
       <button className="btn dark block" type="submit" disabled={busy}>{busy ? "Moving…" : "Move my check-in here"}</button>
       <button className="btn ghost block" type="button" onClick={onCancel}>Not me</button>
-      <p className="small">Can&apos;t get to the other app? Ask the organizer to undo your check-in, then check in here.</p>
     </form>
   );
 }

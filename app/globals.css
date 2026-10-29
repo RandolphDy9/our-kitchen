@@ -654,6 +654,8 @@ body::before{display:none}
 /* Moving a check-in to another app or phone */
 .move-in{padding:14px;gap:12px}
 .move-in .notice{background:var(--card)}
+.move-tip{background:var(--card-2);border-left:4px solid var(--ink);padding:10px 12px}
+.move-tip b{display:block}
 .move-in input{letter-spacing:.4em;font-family:var(--f-display);font-size:1.4rem;text-align:center}
 .move-code{display:grid;justify-items:center;gap:4px;width:100%;margin-top:8px;padding:12px;border:var(--b);background:var(--lime)}
 .move-code > span{font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
