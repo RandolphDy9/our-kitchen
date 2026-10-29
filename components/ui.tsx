@@ -91,11 +91,7 @@ export const SplashArt = () => (
     <path d="M51 110v96" stroke="#121212" strokeWidth="1.5" />
     <circle cx="51" cy="236" r="22" fill="#121212" />
     <g fill="#f6b90a"><circle cx="44" cy="230" r="2.6" /><circle cx="56" cy="228" r="2.6" /><circle cx="51" cy="240" r="2.6" /><circle cx="60" cy="243" r="2.6" /><circle cx="42" cy="244" r="2.6" /></g>
-    <path d="M100 286h260" stroke="#121212" strokeWidth="1.5" />
     <g fill="#121212"><rect x="14" y="300" width="9" height="9" /><rect x="23" y="309" width="9" height="9" /><rect x="32" y="300" width="9" height="9" /><rect x="41" y="309" width="9" height="9" /></g>
-    <path d="M290 330v-40M330 330v-24" stroke="#121212" strokeWidth="1.5" />
-    <ellipse cx="290" cy="290" rx="24" ry="11" transform="rotate(-18 290 290)" fill="#121212" /><ellipse cx="330" cy="304" rx="20" ry="9" transform="rotate(-18 330 304)" fill="#121212" />
-    <path d="M282 291l14-4M323 305l12-3" stroke="#f6b90a" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 export const TrophyArt = () => (
