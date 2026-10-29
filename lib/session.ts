@@ -31,7 +31,8 @@ export function recomputeRole() {
     if (mine.length) myClubs[club] = mine.some((m) => m.role === "owner") ? "owner" : "admin";
   }
   const canRun = (c: string | null) => !!c && (isOwner || !!myClubs[c]);
-  const runs = isOwner ? S.clubs.map((c) => c.id) : Object.keys(myClubs);
+  // The platform owner runs every club, including one whose club record is missing but still has events.
+  const runs = isOwner ? [...new Set([...S.clubs.map((c) => c.id), ...S.events.map(clubOf)])] : Object.keys(myClubs);
   // The club on screen: the open event's, else the one picked, else the first they run.
   const e = S.events.find((x) => x.id === S.eventId);
   let clubId = e ? clubOf(e) : canRun(S.clubId) ? S.clubId : runs[0] || null;
