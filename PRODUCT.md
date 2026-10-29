@@ -8,7 +8,7 @@ product
 Club pickleball players and the volunteers who run their tournaments. Both groups are mostly on phones, standing at the venue between games: players scan a QR code to check in, watch for "You're up!", look up their court, and check pools and the bracket. Organizers import the Excel schedule, enter scores and manage admins, usually from a phone and occasionally from a laptop during setup. Many players are older, so text has to be comfortable to read at arm's length.
 
 ## Product Purpose
-OurKitchen runs a one-day pickleball tournament from a single link: check-in, live courts, pools, playoff brackets, alerts, reactions and an event photo gallery. Success means no one has to crowd around a printed sheet or shout across the gym. Players know where to be and when, and organizers spend their time on the courts instead of the paperwork.
+Qsina runs a one-day pickleball tournament from a single link: check-in, live courts, pools, playoff brackets, alerts, reactions and an event photo gallery. Success means no one has to crowd around a printed sheet or shout across the gym. Players know where to be and when, and organizers spend their time on the courts instead of the paperwork.
 
 ## Brand Personality
 Bold, sporty, friendly. It feels like a club event poster: confident yellow, black and white, square edges, punchy all-caps headings and hard shadows. The copy is plain and warm, like a helpful club volunteer, never corporate.

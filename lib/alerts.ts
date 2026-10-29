@@ -5,7 +5,7 @@ import { ls } from "./store";
 
 type WL = { release(): Promise<void>; addEventListener(t: "release", f: () => void): void };
 const AL: { ctx: AudioContext | null; lock: WL | null; blink: ReturnType<typeof setInterval> | null; baseTitle: string } =
-  { ctx: null, lock: null, blink: null, baseTitle: "OurKitchen" };
+  { ctx: null, lock: null, blink: null, baseTitle: "Qsina" };
 
 export const alertPrefs = () => ({ sound: ls.get("al.sound", true), wake: ls.get("al.wake", false), notify: ls.get("al.notify", false) });
 

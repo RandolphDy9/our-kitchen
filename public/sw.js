@@ -1,8 +1,8 @@
-/* OurKitchen service worker.
+/* Qsina service worker.
    - Pages: network first, falling back to the cached app shell so the app opens with no signal.
    - /_next/static, fonts, icons: cache first (they're content-hashed or versioned).
    - Firebase/Firestore traffic is never touched; Firestore keeps its own offline cache. */
-const VERSION = "ok-v1";
+const VERSION = "ok-v3";
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 const PRECACHE = ["/", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
