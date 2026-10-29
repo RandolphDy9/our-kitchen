@@ -118,6 +118,8 @@ function ImportCard() {
   const S = useApp();
   const [I, setI] = useState<Imp>({});
   const [delAsk, setDelAsk] = useState(false);
+  const [delTxt, setDelTxt] = useState("");
+  const delOk = delTxt.trim().toUpperCase() === "REMOVE";
   const cardRef = useRef<HTMLElement>(null);
   const has = S.sched.length;
   const left = schedLeftovers(S), leftN = left.players.length + left.matches.length;
@@ -163,6 +165,7 @@ function ImportCard() {
     await impDelete((msg) => setI({ busy: true, msg }));
     setI({});
     setDelAsk(false);
+    setDelTxt("");
   };
 
   const pick = (
@@ -207,9 +210,14 @@ function ImportCard() {
   else if (has) body = (
     <>
       <p className="small">This event has <b>{S.sched.length} scheduled games</b> in <b>{S.divs.length} divisions</b>.</p>
-      {delAsk ? <p className="small">Removing also deletes the <b>{left.players.length} players</b> it added who haven&apos;t checked in. Checked-in players stay.</p> : null}
+      {delAsk ? <>
+        <p className="small">Removing deletes all <b>{S.sched.length} scheduled games</b>, their scores, and the <b>{left.players.length} players</b> it added who haven&apos;t checked in. Checked-in players stay. This can&apos;t be undone.</p>
+        <div className="field"><label htmlFor="del-sched">Type REMOVE to confirm</label>
+          <input id="del-sched" type="text" autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} autoFocus
+            value={delTxt} onChange={(e) => setDelTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && delOk) del(); }} /></div>
+      </> : null}
       <div className="row">{pick}{delAsk
-        ? <><button className="btn sm danger" onClick={del}>Yes, remove the schedule</button><button className="btn sm ghost" onClick={() => setDelAsk(false)}>Keep it</button></>
+        ? <><button className="btn sm danger" onClick={del} disabled={!delOk}>Yes, remove the schedule</button><button className="btn sm ghost" onClick={() => { setDelAsk(false); setDelTxt(""); }}>Keep it</button></>
         : <button className="btn sm ghost" onClick={() => setDelAsk(true)}>Remove schedule</button>}</div>
     </>
   );
