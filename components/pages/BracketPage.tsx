@@ -246,25 +246,23 @@ function Builder({ onDone }: { onDone: () => void }) {
 export function BracketPage() {
   const S = useApp();
   const [sel, setSel] = useState<string | null>(null);
-  const [building, setBuilding] = useState(false);
   const admin = isAdminView(S), list = brList(S), br = curBracket(S);
   useEffect(() => setSel(null), [br?.id]);
   return (
     <div className="view">
       {admin ? null : <div style={{ display: "grid", gap: 14 }}><Road /></div>}
-      <div className="sec-head"><h2>Playoffs</h2>{admin && !building ? <button className="btn sm dark" onClick={() => setBuilding(true)}><Icon n="plus" />New playoff</button> : null}</div>
-      {admin && building ? <Builder onDone={() => setBuilding(false)} /> : null}
+      {/* Playoffs come from the uploaded schedule; the hand-built bracket (Builder) is turned off for now. */}
+      <div className="sec-head"><h2>Playoffs</h2></div>
       {list.length > 1 ? (
         <div className="seg" role="group" aria-label="Choose a playoff">
           {list.map((b) => <button key={b.id} aria-pressed={b.id === br?.id} onClick={() => set({ bkId: b.id })}>{b.name}</button>)}
         </div>
       ) : null}
-      {!br ? (admin && building ? null : (
+      {!br ? (
         <div className="empty"><span className="sq"><Icon n="bracket" /></span><h3>No playoffs yet</h3>
-          <p>{admin ? "Build a bracket from today's results. Top teams play for the championship, and semifinal losers battle for bronze." : "When the organizer starts the bracket, you'll see your road to the championship here."}</p>
-          {admin ? <button className="btn dark" onClick={() => setBuilding(true)}>Create playoff</button> : null}
+          <p>{admin ? "Playoffs come from the uploaded schedule. Once it has quarterfinal, semifinal or medal games, they show up here." : "When the playoffs start, you'll see your road to the championship here."}</p>
         </div>
-      )) : <>
+      ) : <>
         <BkBlock br={br} sel={sel} onSel={(id) => setSel(sel === id ? null : id)} />
         {admin ? <BkPanel br={br} sel={sel} setSel={setSel} /> : null}
       </>}
