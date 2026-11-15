@@ -73,7 +73,8 @@ export function impTime(v: Cell): Slot | null {
 
 /* ---------- divisions and pools ---------- */
 const LEVEL_ORDER = ["Novice", "Low Intermediate", "Intermediate", "High Intermediate", "Advanced", "Open"];
-const levelRank = (l: string) => {
+/** Sort order for division levels: Novice first, Advanced last, then ratings like 3.5 by number. */
+export const levelRank = (l: string) => {
   const i = LEVEL_ORDER.indexOf(l);
   return i >= 0 ? i : 10 + (parseFloat(l) || 0);
 };

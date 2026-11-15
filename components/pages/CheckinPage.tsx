@@ -4,7 +4,7 @@ import { useApp, set } from "@/lib/store";
 import { checkinOpen, checkinOpensAt, fmtClock, fmtDate, fmtTime, me, pById } from "@/lib/model";
 import { claim, moveIn, organizerSignIn } from "@/lib/actions";
 import type { EventDoc, Player } from "@/lib/types";
-import { Av, Icon, LvlChip, NameStory, SplashArt } from "../ui";
+import { Av, Icon, NameStory, PlayerLevels, SplashArt } from "../ui";
 import { InstallPrompt } from "../InstallPrompt";
 import { Ball3D } from "../Ball3D";
 
@@ -66,7 +66,7 @@ export function CheckinPage({ e }: { e: EventDoc }) {
     const list = S.players.filter((p) => p.name.toLowerCase().includes(ql)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 15);
     pick = list.length ? list.map((p) => (
       <button key={p.id} onClick={() => setConfirm(p.id)}><Av p={p} /><span className="grow">{p.name}</span>
-        {p.checkedIn ? <span className="status live"><span className="dot live" />Here</span> : <LvlChip l={p.level} />}</button>
+        {p.checkedIn ? <span className="status live"><span className="dot live" />Here</span> : <span className="lvls"><PlayerLevels p={p} /></span>}</button>
     )) : <p className="small muted">No one named “{q}” yet. Only organizers can add players.</p>;
   }
   return (

@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
 import { useApp, set } from "@/lib/store";
-import { LEVELS, busy, fmtClock, gamesPlayed, kudosTotal, live, me, reactionsOf, tally, wonBy } from "@/lib/model";
+import { CAT_SHORT, LEVELS, busy, eventLevels, fmtClock, gamesPlayed, kudosTotal, live, me, playerDivs, playerLevels, reactionsOf, tally, wonBy } from "@/lib/model";
 import { clearDemo, delPlayer, playerCode, setGender, toggleIn, toggleReaction } from "@/lib/actions";
 import type { Player } from "@/lib/types";
-import { Av, Icon, LvlChip, Tally } from "../ui";
+import { Av, Icon, LevelChip, PlayerLevels, Tally } from "../ui";
+import { Select } from "../Select";
 import { Fans } from "../widgets";
 import { MoveCode } from "./CourtsPage";
 
@@ -24,11 +25,13 @@ export function PlayersPage() {
   const i = S.players.filter((p) => p.checkedIn).length;
   const gp = gamesPlayed(S), b = busy(S), courtOf: Record<string, number | null> = {};
   live(S).forEach((m) => [...m.teamA, ...m.teamB].forEach((id) => (courtOf[id] = m.court)));
-  const list = S.players.filter((p) => (f.g === "all" || p.gender === f.g) && (f.lvl === "all" || p.level === f.lvl) &&
+  // Level filter: the levels named in this event's divisions, or the old Low/High for events without a schedule.
+  const lvls = S.divs.length ? eventLevels(S) : ["Low", "High"];
+  const list = S.players.filter((p) => (f.g === "all" || p.gender === f.g) && (f.lvl === "all" || playerLevels(S, p).includes(f.lvl)) &&
     (f.st === "all" || (f.st === "in" ? p.checkedIn : !p.checkedIn)) && (!f.q || p.name.toLowerCase().includes(f.q.toLowerCase())))
     .sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0) || a.name.localeCompare(b.name));
   const demo = S.players.some((p) => p.demo);
-  const pf = (k: keyof PF, v: string) => setF((x) => ({ ...x, [k]: v, ...(k === "g" && v === "all" ? { lvl: "all" } : {}) }));
+  const pf = (k: keyof PF, v: string) => setF((x) => ({ ...x, [k]: v }));
 
   return (
     <div className="view">
@@ -39,10 +42,11 @@ export function PlayersPage() {
         <div className="seg" role="group" aria-label="Status">
           {[["all", "Everyone"], ["in", "Active"], ["out", "Not here"]].map(([v, l]) => <button key={v} aria-pressed={f.st === v} onClick={() => pf("st", v)}>{l}</button>)}
         </div>
-        <div className="seg" role="group" aria-label="Division and level">
-          {([["g", "all", "All"], ["g", "M", "Men"], ["g", "F", "Women"], ["lvl", "low", "Low"], ["lvl", "high", "High"]] as const).map(([k, v, l]) =>
-            <button key={k + v} aria-pressed={k === "g" ? f.g === v : f.lvl === v} onClick={() => pf(k, v)}>{l}</button>)}
+        <div className="seg" role="group" aria-label="Men or women">
+          {[["all", "All"], ["M", "Men"], ["F", "Women"]].map(([v, l]) => <button key={v} aria-pressed={f.g === v} onClick={() => pf("g", v)}>{l}</button>)}
         </div>
+        {/* A dropdown, not buttons: club level names ("Low Intermediate", "3.5–4.0") are too long to sit side by side on a phone. */}
+        <Select aria-label="Level" value={f.lvl} onChange={(v) => pf("lvl", v)} options={[["all", "All levels"], ...lvls.map((l) => [l, l] as const)]} />
       </div>
       {!S.players.length ? (
         <div className="empty"><h3>No players yet</h3><p>Import the tournament schedule (.xlsx) from the Event tab. Its players are added here automatically.</p><button className="btn dark" onClick={() => set({ tab: "event" })}>Go to Event</button></div>
@@ -56,7 +60,7 @@ export function PlayersPage() {
                   {p.checkedIn ? <span className="status live"><span className="dot live" />Active {fmtClock(p.checkedInAt)}</span> : <span className="status"><span className="dot" />Not here</span>}
                   {p.gender ? <span className="chip on">{p.gender === "M" ? "Men" : "Women"}</span>
                     : <span className="gset" title="Set gender"><button onClick={() => setGender(p.id, "M")} aria-label={`${p.name} is a man`}>M</button><button onClick={() => setGender(p.id, "F")} aria-label={`${p.name} is a woman`}>F</button></span>}
-                  <LvlChip l={p.level} />
+                  <PlayerLevels p={p} />
                   {b.has(p.id) ? <span className="chip open">Court {courtOf[p.id]}</span> : null}
                   <span className="small muted num">{gp[p.id] || 0} games</span><Tally pid={p.id} />
                 </div>
@@ -104,12 +108,13 @@ function MyCard() {
   const S = useApp(), m = me(S);
   if (!m) return null;
   const fin = S.matches.filter((x) => x.status === "done" && [...x.teamA, ...x.teamB].includes(m.id));
-  const wins = fin.filter((x) => wonBy(x, m.id)).length;
+  const wins = fin.filter((x) => wonBy(x, m.id)).length, divs = playerDivs(S, m.id);
   return (
     <section className="profile mine">
       <div className="who"><Av p={m} />
-        <div><h2>{m.name}</h2><span className="small muted">{m.gender === "M" ? "Men's · " : m.gender === "F" ? "Women's · " : ""}{LEVELS[m.level]} level</span></div>
+        <div><h2>{m.name}</h2>{divs.length ? null : <span className="small muted">{m.gender === "M" ? "Men's · " : m.gender === "F" ? "Women's · " : ""}{LEVELS[m.level]} level</span>}</div>
       </div>
+      {divs.length ? <ul className="my-divs" aria-label="Your divisions">{divs.map((d) => <li key={d.id}><LevelChip level={d.level} label={`${CAT_SHORT[d.cat]} ${d.level}`} /></li>)}</ul> : null}
       <div className="pboxes">
         <div className="pbox"><span className="top"><Icon n="paddle" />{fin.length}</span><span>Games</span></div>
         <div className="pbox"><span className="top"><Icon n="trophy" />{wins}</span><span>Wins</span></div>
@@ -141,7 +146,7 @@ export function PeoplePage() {
             <div className={`item hype ${isOpen ? "open" : ""}`} key={p.id}><Av p={p} />
               <div style={{ minWidth: 0 }}>
                 <div className="name">{p.name}</div>
-                <div className="sub"><LvlChip l={p.level} />{n ? <Tally pid={p.id} /> : null}</div>
+                <div className="sub"><PlayerLevels p={p} />{n ? <Tally pid={p.id} /> : null}</div>
               </div>
               <button className={`btn sm ${isOpen ? "soft" : ""}`} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : p.id)}>{isOpen ? "Done" : "Hype"}</button>
               {isOpen ? <ReactButtons p={p} /> : null}

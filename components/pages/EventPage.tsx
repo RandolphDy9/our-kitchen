@@ -2,14 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useApp, set, get, toast } from "@/lib/store";
-import { MAX_REACTIONS, adminClubs, canImport, ev, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
+import { CAT_SHORT, MAX_REACTIONS, adminClubs, canImport, ev, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
 import { deleteEvent, impDelete, impRun, saveBlob, saveReactions, schedLeftovers } from "@/lib/actions";
 import { selectEvent, switchClub } from "@/lib/session";
 import { nameKey, parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
 import type { EventDoc, Reaction } from "@/lib/types";
 import { Hero, ActivityFeed, PulseCard } from "../widgets";
-import { Icon, Stat } from "../ui";
+import { Icon, LevelChip, Stat } from "../ui";
 import { Select } from "../Select";
 import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
 
@@ -28,6 +28,19 @@ export function Tiles() {
 function Cats() {
   const S = useApp(), P = S.players;
   if (!P.length) return <p className="muted">No players yet. Import the tournament schedule above to add them.</p>;
+  if (S.divs.length) {
+    // Per division, as the club's sheet names them: how many of its players have checked in.
+    const here = new Set(P.filter((p) => p.checkedIn).map((p) => p.id));
+    return (
+      <div className="tbl-wrap"><table className="arrivals"><thead><tr><th>Division</th><th>Here</th></tr></thead><tbody>
+        {S.divs.map((d) => {
+          const ids = [...new Set(d.teams.flatMap((t) => t.players))], i = ids.filter((id) => here.has(id)).length;
+          return <tr key={d.id}><td><span className="arr-div"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span><LevelChip level={d.level} /></span></td>
+            <td><span className="num">{i}/{ids.length}</span><div className="bar"><i style={{ width: `${ids.length ? i / ids.length * 100 : 0}%` }} /></div></td></tr>;
+        })}
+      </tbody></table></div>
+    );
+  }
   const cell = (g: string, l: string) => {
     const all = P.filter((p) => p.gender === g && p.level === l), i = all.filter((p) => p.checkedIn).length;
     return <td><span className="num">{i}/{all.length}</span><div className="bar"><i style={{ width: `${all.length ? i / all.length * 100 : 0}%` }} /></div></td>;
@@ -330,7 +343,7 @@ export function EventPage({ e }: { e: EventDoc }) {
           <ImportCard />
           <section className="card"><div className="sec-head"><h2>Activity</h2><button className="link" onClick={() => set({ tab: "results" })}>See all</button></div><div className="feed"><ActivityFeed limit={6} /></div></section>
           <PulseCard />
-          <section className="card"><div className="sec-head"><h2>Arrivals by category</h2><button className="link" onClick={() => set({ tab: "players" })}>See all</button></div><Cats /></section>
+          <section className="card"><div className="sec-head"><h2>Arrivals by {S.divs.length ? "division" : "category"}</h2><button className="link" onClick={() => set({ tab: "players" })}>See all</button></div><Cats /></section>
           <RxEditor key={get().eventId || ""} />
           <DeleteEventCard key={"del-" + e.id} e={e} />
         </div>

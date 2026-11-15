@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CAT_SHORT, LEVELS, hue, initials, reactionsOf, tally } from "@/lib/model";
+import { CAT_SHORT, LEVELS, hue, initials, levelBars, playerLevels, reactionsOf, tally } from "@/lib/model";
 import { useApp } from "@/lib/store";
-import type { Match } from "@/lib/types";
+import type { Match, Player } from "@/lib/types";
 import { Ball3D } from "./Ball3D";
 
 /* Static, trusted SVG fragments (same set as the original). */
@@ -47,9 +47,21 @@ export const Stat = ({ icon, label, val, unit }: { icon: IconName; label: string
   <div className="stat"><span className="ico"><Icon n={icon} /></span><span className="label">{label}</span><b>{val}{unit ? <small>{unit}</small> : null}</b></div>
 );
 
-export const LvlChip = ({ l }: { l?: string }) => (
-  <span className={`chip ${l === "high" ? "high" : l === "low" ? "low" : "open"}`}><Icon n="flag" />{LEVELS[l || ""] || l}</span>
-);
+/** A level badge: the club's own name for it, with 1 to 3 bars so it reads at a glance without relying on colour. */
+export function LevelChip({ level, label }: { level: string; label?: string }) {
+  const n = levelBars(level);
+  return (
+    <span className={`chip lvl lv${n}`}>
+      {n ? <span className="lv-bars" aria-hidden="true"><i className={n >= 1 ? "on" : ""} /><i className={n >= 2 ? "on" : ""} /><i className={n >= 3 ? "on" : ""} /></span> : null}
+      {label || level}
+    </span>
+  );
+}
+/** The levels a player plays at, from the divisions they're entered in (usually one, sometimes two). */
+export function PlayerLevels({ p }: { p: Pick<Player, "id" | "level"> }) {
+  const S = useApp();
+  return <>{playerLevels(S, p).map((l) => <LevelChip key={l} level={l} />)}</>;
+}
 export const CatTag = ({ m }: { m: Pick<Match, "category" | "level"> }) => <span className={`tag ${m.category}`}>{CAT_SHORT[m.category]} · {LEVELS[m.level]}</span>;
 export const CatOnly = ({ cat }: { cat: string }) => <span className={`tag ${cat}`}>{CAT_SHORT[cat]}</span>;
 

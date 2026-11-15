@@ -630,6 +630,20 @@ body::before{display:none}
 .alerts summary .al-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .alerts summary .al-sum svg.i{width:20px;height:20px;flex:none}
 .alerts:not([open]){padding-block:10px}
+/* Level badges: the club's own level names, with 1 to 3 bars (Novice, Intermediate, Advanced) */
+.chip.lvl{gap:6px;padding:2px 9px}
+.lv-bars{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.lv-bars i{width:3px;background:currentColor;opacity:.25}
+.lv-bars i:nth-child(1){height:5px}.lv-bars i:nth-child(2){height:8px}.lv-bars i:nth-child(3){height:12px}
+.lv-bars i.on{opacity:1}
+.chip.lv1{background:var(--card)}
+.chip.lv2{background:var(--lime)}
+.chip.lv3{background:var(--ink);color:var(--lime);border-color:var(--ink)}
+.chip.lv3 .lv-bars i{opacity:.35}.chip.lv3 .lv-bars i.on{opacity:1}
+.lvls{display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.my-divs{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.my-divs li{display:inline-flex;align-items:center;gap:6px}
+.arr-div{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 /* 3D pickleball (components/Ball3D.tsx). Empty until three.js has drawn a frame, so the flat art shows first. */
 .ball3d{position:absolute;inset:0}
 .ball3d canvas{display:block;width:100%;height:100%;touch-action:manipulation;-webkit-tap-highlight-color:transparent}

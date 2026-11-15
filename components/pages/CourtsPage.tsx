@@ -145,7 +145,7 @@ function Board() {
         {S.scoring === m.id ? <ScoreForm m={m} /> : <>
           <div className="court-body"><span className="ibox"><Icon n="paddle" /></span>
             <div style={{ minWidth: 0 }}>
-              <div className="lab">{rLabel(S, m)} · {LEVELS[m.level]} level</div>
+              <div className="lab">{rLabel(S, m)}{m.sched ? "" : ` · ${LEVELS[m.level]} level`}</div>
               <div className="tA">{m.teamA.map((id) => first(S, id)).join(" & ")}</div>
               <div className="tB"><em>VS</em>{m.teamB.map((id) => first(S, id)).join(" & ")}</div>
             </div>

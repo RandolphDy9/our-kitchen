@@ -1,6 +1,6 @@
 /* Derived data. Ported 1:1 from the original artifact's helpers; each takes the app state. */
 import { ls, type AppState } from "./store";
-import { seedOrder } from "./schedule";
+import { levelRank, seedOrder } from "./schedule";
 import type {
   Bracket, Cat, Div, EventDoc, Match, PlanItem, Player, Reaction, Ref, Sched, SRef, Team,
 } from "./types";
@@ -211,6 +211,28 @@ export const curBracket = (S: S) => {
 };
 
 /* ---------- imported schedule ---------- */
+/* ---------- player levels ----------
+   A player's level is the level of the divisions they play in, as the club's sheet names it (Novice,
+   Intermediate, Advanced, 3.5…). Players added without a schedule fall back to the old Low/High. */
+const CAT_RANK: Record<string, number> = { womens: 0, mens: 1, mixed: 2 };
+/** The divisions a player is entered in, women's/men's first, then mixed. */
+export const playerDivs = (S: S, pid: string) =>
+  S.divs.filter((d) => d.teams.some((t) => t.players.includes(pid))).sort((a, b) => CAT_RANK[a.cat] - CAT_RANK[b.cat] || levelRank(a.level) - levelRank(b.level));
+/** The player's levels, lowest first, without repeats (Women's Novice and Mixed Novice → just Novice). */
+export function playerLevels(S: S, p: Pick<Player, "id" | "level">): string[] {
+  const ls = [...new Set(playerDivs(S, p.id).map((d) => d.level))].sort((a, b) => levelRank(a) - levelRank(b));
+  return ls.length ? ls : p.level && LEVELS[p.level] && p.level !== "any" ? [LEVELS[p.level]] : [];
+}
+/** Every level in this event's divisions, lowest first. */
+export const eventLevels = (S: S) => [...new Set(S.divs.map((d) => d.level))].sort((a, b) => levelRank(a) - levelRank(b));
+/** 1 to 3 filled bars for how advanced a level is; 0 when it doesn't say (Open). */
+export function levelBars(l: string): number {
+  if (/novice|beginner|^low$/i.test(l)) return 1;
+  if (/advanced|^high$/i.test(l)) return 3;
+  if (/intermediate/i.test(l)) return 2;
+  const r = parseFloat(l);
+  return r ? (r < 3 ? 1 : r < 4 ? 2 : 3) : 0;
+}
 export const lvlKey = (l?: string) => (/novice|low/i.test(l || "") ? "low" : "high");
 export const divById = (S: S, id?: string) => S.divs.find((d) => d.id === id);
 export const divName = (d: Pick<Div, "cat" | "level">) => `${CAT_SHORT[d.cat] || ""} · ${d.level}`;
