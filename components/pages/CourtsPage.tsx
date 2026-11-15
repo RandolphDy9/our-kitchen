@@ -2,16 +2,15 @@
 import { useState } from "react";
 import { useApp, set, ls, toast, type CView } from "@/lib/store";
 import {
-  CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, first, fmtTime, gamesPlayed, isAdminView, isMineSched, kudosTotal,
+  CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, first, fmtTime, gamesPlayed, isAdminView, isMineSched,
   live, me, pName, poolTable, qualCount, seedInfo, rLabel, refText, scTxt, schedLocked, schedSides, standings, teamName, todayISO, wonBy,
 } from "@/lib/model";
 import { recordSched, saveResult, showMoveCode, startSched, testAlert, undoSched } from "@/lib/actions";
 import { alertPrefs, applyWake, chime, notifySupported, primeAudio, requestNotify, wakeSupported } from "@/lib/alerts";
 import type { Match, Sched } from "@/lib/types";
-import { ArtCourt, ArtPaddle, Av, CatOnly, Icon, Tally, numOrNull } from "../ui";
+import { ArtCourt, ArtPaddle, Av, CatOnly, Icon, numOrNull } from "../ui";
 import { Select } from "../Select";
 import { useTick } from "../widgets";
-import { Road } from "./BracketPage";
 
 function MyBanner() {
   const S = useApp(), m = me(S), e = ev(S);
@@ -46,20 +45,7 @@ function MyBanner() {
   return (
     <div className="view" style={{ gap: 14 }}>
       <div className="greet"><h1>Hey, {m.name.split(" ")[0]}</h1><p>{e?.name || ""} · {e?.venue || ""}</p></div>
-      <div className="me-grid">{boost}
-        <section className="profile"><Av p={m} /><h2>{m.name}</h2>
-          <span className="where"><Icon n="pin" />{e?.venue || ""}</span>
-          <span className="small muted">{m.gender === "M" ? "Men's · " : m.gender === "F" ? "Women's · " : ""}{LEVELS[m.level]} level</span>
-          <div className="pboxes">
-            <div className="pbox"><span className="top"><Icon n="paddle" />{played}</span><span>Games</span></div>
-            <div className="pbox"><span className="top"><Icon n="trophy" />{wins}</span><span>Wins</span></div>
-            <div className="pbox"><span className="top"><Icon n="heart" />{kudosTotal(S, m.id)}</span><span>Reactions</span></div>
-          </div>
-          <Tally pid={m.id} />
-          <button className="btn dark block" style={{ marginTop: 8 }} onClick={() => set({ tab: "people" })}>Hype a player</button>
-          <MoveCode />
-        </section>
-      </div>
+      {boost}
     </div>
   );
 }
@@ -100,8 +86,8 @@ function AlertsCard() {
     setP((x) => ({ ...x, [k]: v }));
   };
   return (
-    <section className="card alerts">
-      <div className="sec-head"><h2>Game alerts</h2><span className="pill"><Icon n="bell" />On</span></div>
+    <details className="card story alerts">
+      <summary><span className="al-sum"><Icon n="bell" />Game alerts<small>{[p.sound ? "Sound on" : "Silent", wakeSupported() && p.wake ? "screen stays on" : "", notifySupported() && p.notify ? "notifications on" : ""].filter(Boolean).join(" · ")}</small></span></summary>
       <p className="small">When an organizer starts your game, this screen flashes <b>“You&apos;re up!”</b> with your court, {p.sound ? "plays a chime" : "stays silent"} and vibrates. Keep Qsina open during the event to get alerts.</p>
       <label className="check"><input type="checkbox" checked={p.sound} onChange={(e) => { upd("sound", e.target.checked); if (e.target.checked) { primeAudio(); chime(); } }} /> Play a sound</label>
       {wakeSupported() ? <label className="check"><input type="checkbox" checked={p.wake} onChange={(e) => { upd("wake", e.target.checked); applyWake(e.target.checked); toast(e.target.checked ? "Your screen will stay on while Qsina is open" : "Screen can sleep again"); }} /> Keep my screen on while the app is open</label> : null}
@@ -111,7 +97,7 @@ function AlertsCard() {
         if (e.target.checked && !on) toast("Notifications are blocked. Allow them in your browser settings.");
       }} /> Notify me when the app is in the background</label> : null}
       <button className="btn sm" onClick={() => { primeAudio(); testAlert(); }}>Test my alert</button>
-    </section>
+    </details>
   );
 }
 
@@ -338,7 +324,7 @@ export function CourtsPage() {
   const sv: CView = !hasSched ? "board" : views.some(([k]) => k === S.cview) ? S.cview! : views[0][0];
   return (
     <div className="view">
-      {admin ? null : <><MyBanner /><MyGames /><AlertsCard /><div style={{ display: "grid", gap: 14 }}><Road /></div></>}
+      {admin ? null : <><MyBanner /><MyGames /><AlertsCard /></>}
       {hasSched ? (
         <div className="seg" role="group" aria-label="Courts view">
           {views.map(([k, l]) =>

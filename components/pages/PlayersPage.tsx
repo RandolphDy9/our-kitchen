@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useApp, set } from "@/lib/store";
-import { busy, fmtClock, gamesPlayed, kudosTotal, live, me, reactionsOf, tally } from "@/lib/model";
+import { LEVELS, busy, fmtClock, gamesPlayed, kudosTotal, live, me, reactionsOf, tally, wonBy } from "@/lib/model";
 import { clearDemo, delPlayer, playerCode, setGender, toggleIn, toggleReaction } from "@/lib/actions";
 import type { Player } from "@/lib/types";
-import { Av, LvlChip, Tally } from "../ui";
+import { Av, Icon, LvlChip, Tally } from "../ui";
 import { Fans } from "../widgets";
+import { MoveCode } from "./CourtsPage";
 
 type PF = { q: string; g: string; lvl: string; st: string };
 
@@ -98,28 +99,55 @@ function ReactButtons({ p }: { p: Player }) {
   );
 }
 
+/** The player's own card: today's numbers, the reactions they've received, and moving their check-in. */
+function MyCard() {
+  const S = useApp(), m = me(S);
+  if (!m) return null;
+  const fin = S.matches.filter((x) => x.status === "done" && [...x.teamA, ...x.teamB].includes(m.id));
+  const wins = fin.filter((x) => wonBy(x, m.id)).length;
+  return (
+    <section className="profile mine">
+      <div className="who"><Av p={m} />
+        <div><h2>{m.name}</h2><span className="small muted">{m.gender === "M" ? "Men's · " : m.gender === "F" ? "Women's · " : ""}{LEVELS[m.level]} level</span></div>
+      </div>
+      <div className="pboxes">
+        <div className="pbox"><span className="top"><Icon n="paddle" />{fin.length}</span><span>Games</span></div>
+        <div className="pbox"><span className="top"><Icon n="trophy" />{wins}</span><span>Wins</span></div>
+        <div className="pbox"><span className="top"><Icon n="heart" />{kudosTotal(S, m.id)}</span><span>Reactions</span></div>
+      </div>
+      <Tally pid={m.id} />
+      <MoveCode />
+    </section>
+  );
+}
+
 export function PeoplePage() {
   const S = useApp();
   const [rq, setRq] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
   const m = me(S), q = rq.trim().toLowerCase();
-  const list = S.players.filter((p) => p.checkedIn && (!q || p.name.toLowerCase().includes(q)))
-    .sort((a, b) => (a.id === m?.id ? 1 : 0) - (b.id === m?.id ? 1 : 0) || a.name.localeCompare(b.name));
+  const list = S.players.filter((p) => p.checkedIn && p.id !== m?.id && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div className="view">
-      <div className="sec-head"><h2>Hype your fellow players</h2></div>
-      <p className="small muted" style={{ marginTop: -10 }}>Tap a reaction to give it. Tap again to take it back.</p>
+      <MyCard />
       {S.kudos.length ? <section className="card"><div className="sec-head"><h2>Crowd favourites</h2><span className="seeall">Reactions</span></div><Fans /></section> : null}
+      <div className="sec-head"><h2>Hype your fellow players</h2><span className="small muted">{list.length} here</span></div>
+      <p className="small muted" style={{ marginTop: -10 }}>Tap Hype, then a reaction to give it. Tap it again to take it back.</p>
       <div className="field"><label htmlFor="rq" className="lbl">Search</label><input id="rq" type="search" placeholder="Find a player" value={rq} onChange={(e) => setRq(e.target.value)} /></div>
       <div className="list">
-        {!list.length ? <div className="empty">{q ? "No one matches." : "Players show up here once they check in."}</div> : list.map((p) => (
-          <div className="item" key={p.id} style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}><Av p={p} />
-            <div style={{ minWidth: 0 }}>
-              <div className="name">{p.name}{p.id === m?.id ? <> <span className="chip on">You</span></> : null}</div>
-              <div className="sub"><LvlChip l={p.level} />{kudosTotal(S, p.id) ? <span className="small muted">{kudosTotal(S, p.id)} reactions</span> : null}</div>
+        {!list.length ? <div className="empty">{q ? "No one matches." : "Other players show up here once they check in."}</div> : list.map((p) => {
+          const isOpen = open === p.id, n = kudosTotal(S, p.id);
+          return (
+            <div className={`item hype ${isOpen ? "open" : ""}`} key={p.id}><Av p={p} />
+              <div style={{ minWidth: 0 }}>
+                <div className="name">{p.name}</div>
+                <div className="sub"><LvlChip l={p.level} />{n ? <Tally pid={p.id} /> : null}</div>
+              </div>
+              <button className={`btn sm ${isOpen ? "soft" : ""}`} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : p.id)}>{isOpen ? "Done" : "Hype"}</button>
+              {isOpen ? <ReactButtons p={p} /> : null}
             </div>
-            <ReactButtons p={p} />
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

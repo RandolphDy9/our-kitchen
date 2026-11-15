@@ -1,8 +1,9 @@
 "use client";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CAT_SHORT, LEVELS, hue, initials, reactionsOf, tally } from "@/lib/model";
 import { useApp } from "@/lib/store";
 import type { Match } from "@/lib/types";
+import { Ball3D } from "./Ball3D";
 
 /* Static, trusted SVG fragments (same set as the original). */
 const ICON = {
@@ -73,27 +74,54 @@ export const NameStory = () => (
 );
 
 
-export const ArtPaddle = () => (
-  <svg className="boost-art" viewBox="0 0 160 160" aria-hidden="true"><g transform="rotate(-28 80 80)"><ellipse cx="78" cy="62" rx="42" ry="50" fill="#121212" /><ellipse cx="78" cy="62" rx="30" ry="37" fill="none" stroke="#f6b90a" strokeWidth="1.5" strokeDasharray="3 6" /><rect x="70" y="108" width="16" height="46" rx="6" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /></g><circle cx="122" cy="118" r="24" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><g fill="#121212"><circle cx="113" cy="110" r="3" /><circle cx="126" cy="106" r="3" /><circle cx="120" cy="121" r="3" /><circle cx="133" cy="124" r="3" /><circle cx="112" cy="128" r="3" /></g></svg>
-);
+/** Paddle and ball on the player's banner. The ball rolls in as a 3D one where the phone can draw it. */
+export function ArtPaddle() {
+  const [live, setLive] = useState(false);
+  return (
+    <div className="boost-art paddle" aria-hidden="true">
+      <svg viewBox="0 0 160 160"><g transform="rotate(-28 80 80)"><ellipse cx="78" cy="62" rx="42" ry="50" fill="#121212" /><ellipse cx="78" cy="62" rx="30" ry="37" fill="none" stroke="#f6b90a" strokeWidth="1.5" strokeDasharray="3 6" /><rect x="70" y="108" width="16" height="46" rx="6" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /></g>
+        <g opacity={live ? 0 : 1}><circle cx="122" cy="118" r="24" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><g fill="#121212"><circle cx="113" cy="110" r="3" /><circle cx="126" cy="106" r="3" /><circle cx="120" cy="121" r="3" /><circle cx="133" cy="124" r="3" /><circle cx="112" cy="128" r="3" /></g></g></svg>
+      <Ball3D enter="roll" onReady={() => setLive(true)} />
+    </div>
+  );
+}
 export const ArtCourt = () => (
   <svg className="boost-art" viewBox="0 0 120 150" aria-hidden="true"><rect x="8" y="6" width="104" height="138" rx="6" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><path d="M8 75h104" stroke="#121212" strokeWidth="3" /><path d="M8 56h104M8 94h104M60 6v50M60 94v50" stroke="#121212" strokeWidth="1.5" /><circle cx="36" cy="30" r="9" fill="#121212" /><circle cx="84" cy="34" r="9" fill="#121212" /><circle cx="36" cy="118" r="9" fill="#f6b90a" stroke="#121212" strokeWidth="2" /><circle cx="84" cy="114" r="9" fill="#f6b90a" stroke="#121212" strokeWidth="2" /></svg>
 );
 const BARS = [0, 4, 6, 10, 12, 13, 17, 20, 22, 25, 27, 28, 32, 35];
-export const SplashArt = () => (
-  <svg className="art" viewBox="0 0 360 330" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
-    <path d="M0 34h360M100 34v296" stroke="#121212" strokeWidth="1.5" />
-    <g fill="#121212"><rect x="14" y="12" width="8" height="8" /><rect x="22" y="20" width="8" height="8" /><rect x="30" y="12" width="8" height="8" />
-      <rect x="318" y="12" width="8" height="8" /><rect x="326" y="20" width="8" height="8" /><rect x="334" y="12" width="8" height="8" /><rect x="342" y="20" width="8" height="8" />
-      {BARS.map((x) => <rect key={x} x={158 + x * 2} y="11" width={x % 3 ? 1.5 : 3} height="18" />)}</g>
-    <rect x="22" y="58" width="58" height="206" rx="29" fill="none" stroke="#121212" strokeWidth="1.5" />
-    <path d="M51 66a22 22 0 0 1 0 44z" fill="#121212" /><circle cx="51" cy="88" r="22" fill="none" stroke="#121212" strokeWidth="1.5" />
-    <path d="M51 110v96" stroke="#121212" strokeWidth="1.5" />
-    <circle cx="51" cy="236" r="22" fill="#121212" />
-    <g fill="#f6b90a"><circle cx="44" cy="230" r="2.6" /><circle cx="56" cy="228" r="2.6" /><circle cx="51" cy="240" r="2.6" /><circle cx="60" cy="243" r="2.6" /><circle cx="42" cy="244" r="2.6" /></g>
-    <g fill="#121212"><rect x="14" y="300" width="9" height="9" /><rect x="23" y="309" width="9" height="9" /><rect x="32" y="300" width="9" height="9" /><rect x="41" y="309" width="9" height="9" /></g>
-  </svg>
-);
+/** Check-in poster art. The ball in the left column drops and bounces as a 3D one where the phone can draw it. */
+export function SplashArt() {
+  const svg = useRef<SVGSVGElement>(null);
+  const [live, setLive] = useState(false);
+  const [k, setK] = useState(1);
+  // The art is drawn on a 360 x 330 sheet and scaled to cover the card; the 3D ball's box follows that scale.
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const fit = () => setK(Math.max(el.clientWidth / 360, el.clientHeight / 330) || 1);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <>
+      <svg ref={svg} className="art" viewBox="0 0 360 330" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
+        <path d="M0 34h360M100 34v296" stroke="#121212" strokeWidth="1.5" />
+        <g fill="#121212"><rect x="14" y="12" width="8" height="8" /><rect x="22" y="20" width="8" height="8" /><rect x="30" y="12" width="8" height="8" />
+          <rect x="318" y="12" width="8" height="8" /><rect x="326" y="20" width="8" height="8" /><rect x="334" y="12" width="8" height="8" /><rect x="342" y="20" width="8" height="8" />
+          {BARS.map((x) => <rect key={x} x={158 + x * 2} y="11" width={x % 3 ? 1.5 : 3} height="18" />)}</g>
+        <rect x="22" y="58" width="58" height="206" rx="29" fill="none" stroke="#121212" strokeWidth="1.5" />
+        <path d="M51 66a22 22 0 0 1 0 44z" fill="#121212" /><circle cx="51" cy="88" r="22" fill="none" stroke="#121212" strokeWidth="1.5" />
+        <path d="M51 110v96" stroke="#121212" strokeWidth="1.5" />
+        <g opacity={live ? 0 : 1}><circle cx="51" cy="236" r="22" fill="#121212" />
+          <g fill="#f6b90a"><circle cx="44" cy="230" r="2.6" /><circle cx="56" cy="228" r="2.6" /><circle cx="51" cy="240" r="2.6" /><circle cx="60" cy="243" r="2.6" /><circle cx="42" cy="244" r="2.6" /></g></g>
+        <g fill="#121212"><rect x="14" y="300" width="9" height="9" /><rect x="23" y="309" width="9" height="9" /><rect x="32" y="300" width="9" height="9" /><rect x="41" y="309" width="9" height="9" /></g>
+      </svg>
+      <div className="splash-ball" style={{ left: 22 * k, top: 58 * k, width: 58 * k, height: 206 * k }}><Ball3D enter="drop" onReady={() => setLive(true)} /></div>
+    </>
+  );
+}
 export const TrophyArt = () => (
   <svg viewBox="0 0 64 80" aria-hidden="true"><circle cx="32" cy="12" r="9" fill="#f6b90a" stroke="#111" strokeWidth="2.5" /><g fill="#111"><circle cx="29" cy="9" r="1.6" /><circle cx="35" cy="10" r="1.6" /><circle cx="31" cy="15" r="1.6" /></g><path d="M16 22h32v14a16 16 0 0 1-32 0z" fill="#f6b90a" stroke="#111" strokeWidth="3" /><path d="M16 26H7v4a10 10 0 0 0 11 10M48 26h9v4a10 10 0 0 1-11 10" fill="none" stroke="#111" strokeWidth="3" /><path d="M28 51h8v11h-8z" fill="#111" /><rect x="18" y="62" width="28" height="7" fill="#f6b90a" stroke="#111" strokeWidth="3" /><rect x="13" y="69" width="38" height="9" fill="#111" /></svg>
 );

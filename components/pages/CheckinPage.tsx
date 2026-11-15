@@ -6,6 +6,7 @@ import { claim, moveIn, organizerSignIn } from "@/lib/actions";
 import type { EventDoc, Player } from "@/lib/types";
 import { Av, Icon, LvlChip, NameStory, SplashArt } from "../ui";
 import { InstallPrompt } from "../InstallPrompt";
+import { Ball3D } from "../Ball3D";
 
 /** The name is checked in on another app or phone: move it here with the code shown there. */
 function MovePanel({ p, onCancel }: { p: Player; onCancel: () => void }) {
@@ -94,11 +95,17 @@ export function CheckinPage({ e }: { e: EventDoc }) {
   );
 }
 
+/** The tick on "You're in". Where the phone can draw it, the yellow disc becomes a 3D pickleball turning into place. */
+function DoneBadge() {
+  const [live, setLive] = useState(false);
+  return <span className={`done-badge ${live ? "live" : ""}`}><Ball3D enter="spin" color="yellow" fit={0.93} onReady={() => setLive(true)} /><Icon n="check" /></span>;
+}
+
 export function CheckedInPage() {
   const S = useApp(), m = me(S);
   return (
     <div className="view">
-      <section className="card done"><span className="done-badge"><Icon n="check" /></span>
+      <section className="card done"><DoneBadge />
         <h1>You&apos;re in{m ? ", " + m.name.split(" ")[0] : ""}</h1>
         <p className="muted">The organizer can see you&apos;ve arrived. Watch the Courts tab for your matchup.</p>
         <button className="btn dark" onClick={() => { set({ ciJustDone: false, tab: "courts" }); window.scrollTo(0, 0); }}>See the courts</button>
