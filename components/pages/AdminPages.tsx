@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useApp, set, get } from "@/lib/store";
-import { clubName, clubOf, hue, initials, isClubOwner, todayISO } from "@/lib/model";
+import { canImport, clubName, clubOf, hue, initials, isClubOwner, todayISO } from "@/lib/model";
 import { switchClub } from "@/lib/session";
 import type { Member } from "@/lib/types";
 import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
 import { addAdmin, addOwner, createClub, createEvent, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
-import { ImportNotes, TEMPLATE_URL, importReady } from "../ImportNotes";
+import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
 
 export function SignInPage() {
   const [email, setEmail] = useState("");
@@ -46,10 +46,12 @@ export function SignInPage() {
    `first` is the landing screen when there are no events yet (nothing to go back to). */
 export function CreateEventPage({ first = false }: { first?: boolean }) {
   const S = useApp();
-  const [d, setD] = useState<EventDraft>({ name: "", venue: "", date: todayISO(), start: "10:00", end: "14:00", courts: 4, next: "import" });
+  // Only the Qsina team imports schedules for now; club admins set up the event and email their spreadsheet.
+  const imports = canImport(S);
+  const [d, setD] = useState<EventDraft>({ name: "", venue: "", date: todayISO(), start: "10:00", end: "14:00", courts: 4, next: imports ? "import" : "event" });
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fileName, setFileName] = useState("");
-  const [manual, setManual] = useState(false);
+  const [manual, setManual] = useState(!imports);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [skipOk, setSkipOk] = useState(false);
@@ -111,7 +113,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
     <>
       {first ? null : <button className="iconpill" onClick={cancel} style={{ justifySelf: "start" }}>← Back</button>}
       <div className="greet"><h1>{first ? "Set up your first event" : "New event"}</h1>
-        <p>{parsed || manual ? "Check the details, then create the event." : "Upload your tournament schedule. We'll set up the players, divisions, pools and court times from it."}</p></div>
+        <p>{!imports ? "Fill in the details and create the event. Then email us your schedule." : parsed || manual ? "Check the details, then create the event." : "Upload your tournament schedule. We'll set up the players, divisions, pools and court times from it."}</p></div>
     </>
   );
   if (busy && !parsed && !manual) return <div className="view team">{head}<section className="card"><p className="small"><b>{busy}</b></p></section></div>;
@@ -157,7 +159,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
           <div className="field"><label htmlFor="ce-start">Starts</label><input id="ce-start" type="time" required value={d.start} onChange={(e) => up("start", e.target.value)} /></div>
           <div className="field"><label htmlFor="ce-end">Ends</label><input id="ce-end" type="time" required value={d.end} onChange={(e) => up("end", e.target.value)} /></div>
         </div>
-        {parsed ? <p className="small muted">Players can check in from an hour before the start time.</p> : (
+        {!imports ? <><p className="small muted">Players can check in from an hour before the start time.</p><SendSchedule event={d.name.trim() || undefined} /></> : parsed ? <p className="small muted">Players can check in from an hour before the start time.</p> : (
           <fieldset className="ce-next"><legend className="lbl">After creating</legend>
             <label className="check"><input type="radio" name="ce-next" checked={d.next !== "event"} onChange={() => up("next", "import")} /> Import the schedule (.xlsx) next</label>
             <label className="check"><input type="radio" name="ce-next" checked={d.next === "event"} onChange={() => up("next", "event")} /> Just open the event</label>
@@ -165,7 +167,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
         )}
         {err ? <div className="notice" role="alert">{err}</div> : null}
         <button className="btn dark block" type="submit" disabled={!importReady(parsed, skipOk)}>{parsed ? "Create event and import schedule" : "Create event"}</button>
-        <button className="btn ghost block" type="button" onClick={() => { setManual(false); setParsed(null); setErr(null); }}>{parsed ? "Start over" : "Back to upload"}</button>
+        {imports ? <button className="btn ghost block" type="button" onClick={() => { setManual(false); setParsed(null); setErr(null); }}>{parsed ? "Start over" : "Back to upload"}</button> : null}
       </form>
     </div>
   );

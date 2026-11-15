@@ -1,5 +1,6 @@
 /* Derived data. Ported 1:1 from the original artifact's helpers; each takes the app state. */
 import { ls, type AppState } from "./store";
+import { seedOrder } from "./schedule";
 import type {
   Bracket, Cat, Div, EventDoc, Match, PlanItem, Player, Reaction, Ref, Sched, SRef, Team,
 } from "./types";
@@ -102,6 +103,9 @@ export const clubName = (S: S, id?: string | null) => S.clubs.find((c) => c.id =
 /** Clubs this person can run: every club for the platform owner. */
 export const adminClubs = (S: S) => (S.isOwner ? S.clubs : S.clubs.filter((c) => S.myClubs[c.id]));
 export const isClubOwner = (S: S, id = S.clubId) => S.isOwner || (!!id && S.myClubs[id] === "owner");
+/** Who adds, replaces or removes an imported schedule: for now only the platform owner (the database enforces it).
+    Club admins still enter scores. Local mode has no accounts, so anyone can try it there. */
+export const canImport = (S: S) => S.isOwner || S.mode === "local";
 export const clubEvents = (S: S, id = S.clubId) => S.events.filter((e) => clubOf(e) === id);
 export const actorId = (S: S) => (isAdminView(S) ? "admin" : me(S)?.id || null);
 export const actorName = (S: S, id: string) => (id === "admin" ? "Organizer" : pName(S, id));
@@ -232,8 +236,25 @@ export function poolTable(S: S, d: Div, pool: string | null) {
       a.pf += g.res.sa; a.pa += g.res.sb; b.pf += g.res.sb; b.pa += g.res.sa;
     }
   }
-  const rows = Object.values(row).sort((x, y) => y.w - x.w || (y.pf - y.pa) - (x.pf - x.pa) || y.pf - x.pf || teamName(S, x.t).localeCompare(teamName(S, y.t)));
+  const rows = Object.values(row).sort(rowCmp(S));
   return { rows, complete: games.length > 0 && games.every((g) => g.res), played: games.filter((g) => g.res).length, total: games.length };
+}
+type PRow = ReturnType<typeof poolTable>["rows"][number];
+/** Standings order: wins, then point difference, then points scored. */
+const rowCmp = (S: S) => (x: { t: Team; w: number; pf: number; pa: number }, y: { t: Team; w: number; pf: number; pa: number }) =>
+  y.w - x.w || (y.pf - y.pa) - (x.pf - x.pa) || y.pf - x.pf || teamName(S, x.t).localeCompare(teamName(S, y.t));
+/** Playoff seeds across pools, once every pool is finished: the top `adv` of each pool first, then the wildcards. */
+export function seedTable(S: S, d: Div, adv: number): Team[] | null {
+  const tabs = (d.pools.length ? d.pools : [null]).map((p) => poolTable(S, d, p));
+  if (!tabs.every((t) => t.complete)) return null;
+  return seedOrder<PRow>(tabs.map((t) => t.rows), adv, rowCmp(S)).map((r) => r.t);
+}
+/** For seeded playoffs: how many of each pool go through directly, and how many wildcards join them. */
+export function seedInfo(S: S, d: Div) {
+  const refs = S.sched.filter((x) => x.div === d.id).flatMap((x) => [x.a, x.b]).filter((r) => r?.seed);
+  if (!refs.length) return null;
+  const adv = refs[0].adv || 1, seeds = Math.max(...refs.map((r) => r.seed!));
+  return { adv, wild: Math.max(0, seeds - adv * Math.max(1, d.pools.length)) };
 }
 export function resolveRef(S: S, d: Div | undefined, ref?: SRef | null): Team | null {
   if (!d || !ref) return null;
@@ -242,6 +263,7 @@ export function resolveRef(S: S, d: Div | undefined, ref?: SRef | null): Team | 
     const pt = poolTable(S, d, ref.pool);
     return pt.complete ? pt.rows[ref.rank! - 1]?.t || null : null;
   }
+  if (ref.seed) return seedTable(S, d, ref.adv || 1)?.[ref.seed - 1] || null;
   if (ref.rank) {
     const pt = poolTable(S, d, null);
     return pt.complete ? pt.rows[ref.rank - 1]?.t || null : null;
@@ -259,6 +281,7 @@ export function resolveRef(S: S, d: Div | undefined, ref?: SRef | null): Team | 
 export function refText(ref?: SRef | null) {
   if (!ref) return "TBD";
   if (ref.pool) return `Pool ${ref.pool} #${ref.rank}`;
+  if (ref.seed) return `Seed ${ref.seed}`;
   if (ref.rank) return `#${ref.rank} in standings`;
   if (ref.w) return `Winner of ${keyLabel(ref.w)}`;
   if (ref.l) return `Loser of ${keyLabel(ref.l)}`;
@@ -303,6 +326,8 @@ export function schedLocked(S: S, x: Sched) {
 }
 export function qualCount(S: S, d: Div) {
   const ks = S.sched.filter((x) => x.div === d.id).map((x) => x.key);
+  const si = seedInfo(S, d);
+  if (si) return si.adv;
   return ks.includes("q1") || ks.includes("s1") ? 2 : ks.includes("b") ? 4 : ks.includes("f") ? 2 : 0;
 }
 

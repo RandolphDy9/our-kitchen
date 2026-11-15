@@ -61,6 +61,12 @@ create or replace function public.ok_admin_col(c text) returns boolean
   select c like 'events/%/matches' or c like 'roster/%' or c like 'playoffs/%' or c like 'sched/%'
 $$;
 
+-- The imported schedule (sched/{eventId}/m games, sched/{eventId}/d divisions). For now only the platform owner
+-- adds or removes them: uploading, replacing or removing a schedule, and deleting an event that has one.
+-- Club owners and admins still update games (scores, live courts).
+create or replace function public.ok_sched_col(c text) returns boolean
+  language sql immutable as $$ select c like 'sched/%' $$;
+
 -- Players check themselves in from 1 hour before the event's start (admins any time).
 -- c is "checkins/{eventId}/in"; the event's date + start are local times in its tz.
 create or replace function public.ok_checkin_open(c text) returns boolean
@@ -135,6 +141,7 @@ create policy docs_insert on public.docs for insert to authenticated with check 
     when col like 'members/%' then data ->> 'role' in ('owner', 'admin') and case
       when data ->> 'role' = 'owner' then public.ok_is_owner() else public.ok_is_club_owner(split_part(col, '/', 2)) end
     when col = 'events' then public.ok_is_club_admin(coalesce(data ->> 'clubId', ''))
+    when public.ok_sched_col(col) then public.ok_is_owner()
     when public.ok_admin_col(col) then public.ok_is_event_admin(split_part(col, '/', 2))
     when col like 'checkins/%' then public.ok_is_event_admin(split_part(col, '/', 2))
       or (data ->> 'uid' = public.ok_uid() and public.ok_checkin_open(col))
@@ -182,6 +189,7 @@ create policy docs_delete on public.docs for delete to authenticated using (
     when col = 'clubs' then public.ok_is_owner()
     when col like 'members/%' then public.ok_is_owner() or (public.ok_is_club_owner(split_part(col, '/', 2)) and data ->> 'role' = 'admin')
     when col = 'events' then public.ok_is_club_admin(coalesce(data ->> 'clubId', ''))
+    when public.ok_sched_col(col) then public.ok_is_owner()
     when public.ok_admin_col(col) then public.ok_is_event_admin(split_part(col, '/', 2))
     when col like 'checkins/%' then public.ok_is_event_admin(split_part(col, '/', 2))
     when public.ok_social_col(col) then data ->> 'uid' = public.ok_uid() or public.ok_is_event_admin(split_part(col, '/', 2))

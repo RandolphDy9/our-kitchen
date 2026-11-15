@@ -45,7 +45,9 @@ export type Bracket = {
 };
 
 /* Imported schedule */
-export type SRef = { t?: string; pool?: string; rank?: number; w?: string; l?: string };
+/** Who plays in a scheduled game: a team (t), a pool place (pool + rank), a place in the overall standings (rank),
+    a cross-pool playoff seed (seed; the top `adv` of each pool are seeded before the wildcards), or the winner/loser of a playoff game. */
+export type SRef = { t?: string; pool?: string; rank?: number; seed?: number; adv?: number; w?: string; l?: string };
 export type Team = { id: string; players: string[]; pool: string | null; a?: string; b?: string; label?: string };
 export type Div = { id: string; cat: Cat; level: string; pools: string[]; teams: Team[]; order?: number };
 export type Sched = {

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useApp, set, get, toast } from "@/lib/store";
-import { MAX_REACTIONS, adminClubs, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
+import { MAX_REACTIONS, adminClubs, canImport, ev, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
 import { deleteEvent, impDelete, impRun, saveBlob, saveReactions, schedLeftovers } from "@/lib/actions";
 import { selectEvent, switchClub } from "@/lib/session";
 import { nameKey, parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
@@ -11,7 +11,7 @@ import type { EventDoc, Reaction } from "@/lib/types";
 import { Hero, ActivityFeed, PulseCard } from "../widgets";
 import { Icon, Stat } from "../ui";
 import { Select } from "../Select";
-import { ImportNotes, TEMPLATE_URL, importReady } from "../ImportNotes";
+import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
 
 export function Tiles() {
   const S = useApp();
@@ -175,7 +175,13 @@ function ImportCard() {
     </>
   );
   let body;
-  if (I.busy) body = <p className="small"><b>{I.msg || "Working…"}</b></p>;
+  if (!canImport(S)) body = (
+    <>
+      {has ? <p className="small">This event has <b>{S.sched.length} scheduled games</b> in <b>{S.divs.length} divisions</b>. Need a change? Email us the details.</p> : null}
+      <SendSchedule event={ev(S)?.name} />
+    </>
+  );
+  else if (I.busy) body = <p className="small"><b>{I.msg || "Working…"}</b></p>;
   else if (I.parsed && I.opts) {
     const p = I.parsed, known = new Set(S.roster.map((r) => nameKey(r.name))), newN = p.players.filter((x) => !known.has(x.key)).length;
     const pool = p.sched.filter((x) => x.stage === "pool").length, po = p.sched.length - pool, unk = p.players.filter((x) => !x.gender);
@@ -234,8 +240,8 @@ function ImportCard() {
   return (
     <section className="card" ref={cardRef} style={{ scrollMarginTop: 84 }}>
       <div className="sec-head"><h2>Import tournament schedule</h2><span className="pill">Excel</span></div>
-      <p className="small muted">Upload the schedule your admins built: a time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”. Qsina creates the players, divisions, pools, playoff games and court times for this event.</p>
-      <p className="small"><a href={TEMPLATE_URL} download>Download the Qsina template (.xlsx)</a> to see the format.</p>
+      {canImport(S) ? <><p className="small muted">Upload the schedule your admins built: a time column plus Court 1, Court 2… columns, with cells like “Men&apos;s Doubles - Pool A / Alvin/RC vs Chicco/John”. Qsina creates the players, divisions, pools, playoff games and court times for this event.</p>
+      <p className="small"><a href={TEMPLATE_URL} download>Download the Qsina template (.xlsx)</a> to see the format.</p></> : null}
       {body}
     </section>
   );
@@ -291,7 +297,7 @@ function DeleteEventCard({ e }: { e: EventDoc }) {
   };
   return (
     <section className="card"><h2>Delete event</h2>
-      {msg ? <p className="small">{msg}</p> : ask ? (
+      {S.sched.length && !canImport(S) ? <p className="small">This event has an imported schedule, so the Qsina team deletes it. Email us and we&apos;ll remove it with everything in it.</p> : msg ? <p className="small">{msg}</p> : ask ? (
         <form className="del-form" onSubmit={go}>
           <p className="small">This permanently deletes <b>{e.name}</b> with its {S.roster.length} players, check-ins, games, playoffs and {S.photos.length} photos. It can&apos;t be undone.</p>
           <div className="field"><label htmlFor="del-confirm">To confirm, type <b>Confirm</b></label>

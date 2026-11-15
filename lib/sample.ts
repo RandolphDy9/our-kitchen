@@ -33,10 +33,12 @@ export function sampleRows(): (string | null)[][] {
   while (left.length) {
     const row: (string | null)[] = [t()], used = new Set<string>();
     for (let c = 0; c < COURTS; c++) {
-      const i = left.findIndex((g) => !used.has(g.a) && !used.has(g.b));
+      // no player on two courts at once (the mixed teams share players with the women's teams)
+      const people = (g: Game) => [...g.a.split("/"), ...g.b.split("/")];
+      const i = left.findIndex((g) => people(g).every((n) => !used.has(n)));
       if (i < 0) { row.push(null); continue; }
       const [g] = left.splice(i, 1);
-      used.add(g.a); used.add(g.b);
+      people(g).forEach((n) => used.add(n));
       row.push(`${g.head}\n${g.a} vs ${g.b}`);
     }
     rows.push(row);

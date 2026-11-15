@@ -45,14 +45,16 @@ Qsina runs any number of clubs from one site. Each club only sees and manages it
 
 | Who | How they get in | What they can do |
 |---|---|---|
-| **Platform owner** | Signs in with `NEXT_PUBLIC_OWNER_EMAIL` | Everything, in every club. Creates clubs and names their owners (**Club → All clubs**). |
-| **Club owner** | Signs in with the email the platform owner added | Their club: events, schedules, scores, and picking or removing admins. Can rename the club. |
+| **Platform owner** | Signs in with `NEXT_PUBLIC_OWNER_EMAIL` | Everything, in every club. Creates clubs and names their owners (**Club → All clubs**). The only one who uploads, replaces or removes schedules (see below). |
+| **Club owner** | Signs in with the email the platform owner added | Their club: events, scores, and picking or removing admins. Can rename the club. |
 | **Club admin** | Picked from checked-in players by a club owner | Run that club's events from the phone they checked in with. |
 | **Player** | Scans the event's QR code | Check in, courts, results, reactions, photos. |
 
 Adding a club owner takes two steps:
 1. In the app: **Club → All clubs → New club** (or **Add an owner** on an existing club), with their name and sign-in email.
 2. In Supabase: **Authentication → Users → Add user → Create new user**, with the same email and **Auto Confirm User** ticked. Send them the password; they use **Organizer sign in**.
+
+**Schedules are imported by the platform owner for now.** Clubs email their spreadsheet in their own format; the platform owner opens the club's event, uploads it and works through the preview's checks with the organizer. The database enforces this (`ok_sched_col` in `supabase/schema.sql`): only the platform owner can add or delete scheduled games and divisions, so only they can upload, replace or remove a schedule, or delete an event that has one. Club owners and admins still enter scores. To hand uploads to club owners later, change `public.ok_is_owner()` to `public.ok_is_event_admin(split_part(col, '/', 2))` on the two `ok_sched_col` lines, re-run the SQL, and widen `canImport` in `lib/model.ts`.
 
 Running `supabase/schema.sql` moves events made before clubs existed into the first club ("My club"), and their admins with them.
 

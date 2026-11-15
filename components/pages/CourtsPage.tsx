@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useApp, set, ls, toast, type CView } from "@/lib/store";
 import {
   CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, first, fmtTime, gamesPlayed, isAdminView, isMineSched, kudosTotal,
-  live, me, pName, poolTable, qualCount, rLabel, refText, scTxt, schedLocked, schedSides, standings, teamName, todayISO, wonBy,
+  live, me, pName, poolTable, qualCount, seedInfo, rLabel, refText, scTxt, schedLocked, schedSides, standings, teamName, todayISO, wonBy,
 } from "@/lib/model";
 import { recordSched, saveResult, showMoveCode, startSched, testAlert, undoSched } from "@/lib/actions";
 import { alertPrefs, applyWake, chime, notifySupported, primeAudio, requestNotify, wakeSupported } from "@/lib/alerts";
@@ -290,7 +290,7 @@ function Pools() {
   if (!S.divs.length) return <div className="empty">No pools yet.</div>;
   return (
     <div className="view" style={{ gap: 16 }}>{S.divs.map((d) => {
-      const pools = d.pools.length ? d.pools : [null], q = qualCount(S, d);
+      const pools = d.pools.length ? d.pools : [null], q = qualCount(S, d), wild = seedInfo(S, d)?.wild || 0;
       return (
         <section className="card" key={d.id}>
           <div className="sec-head"><h2>{divName(d)}</h2><span className={`tag ${d.cat}`}>{d.teams.length} teams</span></div>
@@ -308,7 +308,7 @@ function Pools() {
               </div>
             );
           })}</div>
-          <p className="small muted">{q ? `Top ${q} ${d.pools.length ? "in each pool" : "teams"} move on to the playoffs (highlighted). ` : ""}Ties break on point difference, then points scored.</p>
+          <p className="small muted">{q ? `Top ${q} ${d.pools.length ? "in each pool" : "teams"} move on to the playoffs (highlighted)${wild ? `, plus the ${wild === 1 ? "best other team" : `${wild} best other teams`} as wildcard${wild === 1 ? "" : "s"}` : ""}. ` : ""}Ties break on point difference, then points scored.</p>
         </section>
       );
     })}</div>
