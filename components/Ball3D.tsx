@@ -2,14 +2,16 @@
 import { useEffect, useRef } from "react";
 
 /* A small 3D pickleball drawn in the poster style: flat colour, one hard shadow band, black outline.
-   It plays one short entrance and then stops drawing, so it costs nothing while the player reads the screen.
+   It plays one short entrance and then stops drawing, so it costs nothing while the player reads the screen
+   (the paddle scene is the exception: it keeps bouncing while it's on screen, until the player taps it).
    three.js loads on demand, only on screens that show a ball. If it can't run (reduced motion, data saver,
    no WebGL) nothing is drawn and the flat artwork underneath stays as it is. */
 
 type Enter = "drop" | "roll" | "spin" | "paddle";
 type Props = {
   /** drop: falls from the top of its box and bounces to rest. roll: rolls in from the right. spin: turns into place.
-      paddle: a paddle is drawn too, and the ball is tapped up on it a few times (a warm-up) before it settles. */
+      paddle: a paddle is drawn too, and the ball keeps bouncing on it (a warm-up). A tap slows it to a stop; another
+      tap starts it again. It pauses while it's off screen. */
   enter: Enter;
   color?: "white" | "yellow";
   /** Ball diameter as a share of the box width. */
@@ -125,8 +127,11 @@ export function Ball3D({ enter, color = "white", fit = 0.76, className, onReady 
         paddle.rotation.y = -0.6;
         scene.add(paddle);
       }
-      // Warm-up taps: the ball drops in, is tapped up five times, then the bounces die away.
-      const FALL = 0.42, HOPS = [3.2, 3.2, 3.2, 3.2, 3.2, 1.5, 0.6, 0.2].map((h) => ({ h, d: 0.62 * Math.sqrt(h / 3.2) }));
+      // Warm-up taps: the ball drops in and keeps bouncing on the paddle. `want` is where the bounce is heading
+      // (1 = full height, 0 = at rest) and `amp` follows it slowly, so a tap winds it down or back up.
+      const FALL = 0.42, PEAK = 3.2;
+      let want = 1, amp = 1, last = 0, falling = true, fallT = 0, hopT = 0, hopH = 0, hopD = 0, since = 9, hit = 1, turn = 0, seen = true;
+      const hop = () => { hopT = 0; hopH = PEAK * amp; hopD = 0.62 * Math.sqrt(hopH / PEAK); };
       size();
 
       const pad = 0.27; // room for the outline between the ball and the edge of its box
@@ -160,24 +165,35 @@ export function Ball3D({ enter, color = "white", fit = 0.76, className, onReady 
           spinner.rotation.z = 0.2 + x;
           done = t >= 1.1;
         } else if (mode === "paddle") {
-          let y = 0, since = 9, tt = t - FALL;
-          if (tt < 0) y = 6.5 * (1 - (t / FALL) ** 2);
-          else {
-            done = true;
-            for (const { h, d } of HOPS) {
-              if (tt < d) { const u = tt / d; y = 4 * h * u * (1 - u); since = tt; done = false; break; }
-              tt -= d;
-            }
-            if (done) since = tt + 0.2;
+          const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
+          last = now;
+          amp += (want - amp) * Math.min(1, dt * 1.3);
+          since += dt;
+          let y = 0;
+          const land = () => { since = 0; hit = Math.min(1, hopH / PEAK + 0.12); hop(); };
+          if (falling) {
+            fallT += dt;
+            y = 6.5 * Math.max(0, 1 - (fallT / FALL) ** 2);
+            if (fallT >= FALL) { falling = false; hopH = PEAK; land(); }
+          } else if (hopH < 0.04) {
+            // Resting on the paddle. Starts hopping again once the bounce is wanted back.
+            if (want && amp > 0.03) hop();
+            else done = !want && since > 0.7;
+          } else {
+            hopT += dt;
+            if (hopT >= hopD) land();
+            if (hopH >= 0.04) { const u = hopT / hopD; y = 4 * hopH * u * (1 - u); }
           }
           // Each hit pushes the paddle down a touch and it springs back.
-          const dip = -0.3 * Math.exp(-9 * since);
+          const dip = -0.3 * hit * Math.exp(-9 * since);
           paddle.position.y = dip;
           paddle.rotation.x = -0.5 * dip;
           ball.position.set(0, 1 + y + dip, 0);
-          spinner.rotation.x = 0.5 + t * 1.6;
-          spinner.rotation.z = 0.2 + t * 0.7;
-          if (done && since > 0.7) done = true; else done = false;
+          turn += dt * (0.15 + amp);
+          spinner.rotation.x = 0.5 + turn * 1.6;
+          spinner.rotation.z = 0.2 + turn * 0.7;
+          // Off screen: stop drawing until it scrolls back into view.
+          if (!seen) done = true;
         } else {
           const k = outExpo(Math.min(t / 1.2, 1));
           ball.scale.setScalar(0.7 + 0.3 * k);
@@ -195,15 +211,23 @@ export function Ball3D({ enter, color = "white", fit = 0.76, className, onReady 
       };
       play(enter);
 
-      // A tap plays it again (or gives the ball one more turn). A resize redraws the resting ball.
-      const tap = () => play(withPaddle ? "paddle" : "spin");
+      // A tap gives the ball one more turn. On the paddle it winds the bouncing down to a stop, or back up.
+      const wake = () => { if (!raf) { last = 0; raf = requestAnimationFrame(frame); } };
+      const tap = () => {
+        if (!withPaddle) return play("spin");
+        want = want ? 0 : 1;
+        wake();
+      };
       cv.addEventListener("pointerdown", tap);
+      const io = new IntersectionObserver(([e]) => { seen = e.isIntersecting; if (seen && withPaddle && (want || hopH >= 0.04)) wake(); });
+      if (withPaddle) io.observe(el);
       const ro = new ResizeObserver(() => { size(); if (!raf) renderer.render(scene, cam); });
       ro.observe(el);
 
       stop = () => {
         cancelAnimationFrame(raf);
         ro.disconnect();
+        io.disconnect();
         cv.removeEventListener("pointerdown", tap);
         [sphere, disc, skin, ink, rim, steps, ...extra].forEach((x) => x.dispose());
         renderer.dispose();

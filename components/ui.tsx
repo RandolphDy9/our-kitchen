@@ -74,7 +74,7 @@ export const NameStory = () => (
 );
 
 
-/** Paddle and ball on the player's banner. Where the phone can draw it, a 3D paddle taps the ball up a few times. */
+/** Paddle and ball on the player's banner. Where the phone can draw it, a 3D paddle keeps the ball bouncing; a tap stops or restarts it. */
 export function ArtPaddle() {
   const [live, setLive] = useState(false);
   return (
