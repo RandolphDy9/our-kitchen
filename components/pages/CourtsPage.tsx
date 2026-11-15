@@ -34,11 +34,15 @@ function MyBanner() {
   } else {
     const lastWon = played && wonBy(fin[fin.length - 1], m.id);
     const sub = `${wins} ${wins === 1 ? "win" : "wins"} from ${played} ${played === 1 ? "game" : "games"} today`;
-    const [title, line] = !played ? ["Warm up!", "You're checked in. Your court shows up here the moment you're called."] : lastWon ? ["Keep it up!", sub] : ["Next one's yours", sub];
+    // Before the first game: say when and where it is, if the schedule knows.
+    const opener = !played ? S.sched.filter((x) => !x.res && isMineSched(S, x)).sort((a, b) => a.slot - b.slot)[0] : null;
+    const [title, line] = !played ? ["Warm up!", opener ? null : "Your court shows up here the moment you're called."] : lastWon ? ["Keep it up!", sub] : ["Next one's yours", sub];
     boost = (
-      <section className="boost"><ArtPaddle />
-        <div className="boost-top"><span className="eyebrow">Today&apos;s run</span>{top}</div>
-        <h1>{title}</h1><p>{line}</p><span className="dots-label">Games</span><div className="dots">{dots}</div>
+      <section className={`boost ${played ? "" : "warm"}`}><ArtPaddle />
+        <div className="boost-top"><span className="eyebrow">{played ? "Today's run" : "You're checked in"}</span>{top}</div>
+        <h1>{title}</h1>
+        {opener ? <p>First game at <b>{fmtTime(opener.time)}</b> on <b>Court {opener.court}</b>. We&apos;ll call you when it starts.</p> : <p>{line}</p>}
+        {played ? <><span className="dots-label">Games</span><div className="dots">{dots}</div></> : null}
       </section>
     );
   }

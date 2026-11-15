@@ -636,7 +636,10 @@ body::before{display:none}
 .splash-ball{position:absolute}
 .boost-art.paddle{aspect-ratio:1}
 .boost-art.paddle svg{display:block;width:100%;height:100%}
-.boost-art.paddle .ball3d{inset:auto;left:56.5%;top:54%;width:39.5%;aspect-ratio:1;pointer-events:auto}
+.boost-art.paddle .ball3d{inset:auto;right:6px;bottom:8px;width:112%;height:150%;pointer-events:auto;opacity:0}
+.boost-art.paddle.live svg{opacity:0}
+.boost-art.paddle.live .ball3d{opacity:1}
+@media (prefers-reduced-motion:no-preference){.boost-art.paddle svg,.boost-art.paddle .ball3d{transition:opacity .2s cubic-bezier(.25,1,.5,1)}}
 .done-badge{position:relative}
 .done-badge.live{background:none;border-color:transparent}
 .done-badge.live svg.i{position:absolute;right:-6px;bottom:-6px;width:32px;height:32px;padding:6px;background:var(--ink);color:var(--lime);stroke-width:3}

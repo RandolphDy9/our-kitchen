@@ -74,14 +74,14 @@ export const NameStory = () => (
 );
 
 
-/** Paddle and ball on the player's banner. The ball rolls in as a 3D one where the phone can draw it. */
+/** Paddle and ball on the player's banner. Where the phone can draw it, a 3D paddle taps the ball up a few times. */
 export function ArtPaddle() {
   const [live, setLive] = useState(false);
   return (
-    <div className="boost-art paddle" aria-hidden="true">
+    <div className={`boost-art paddle ${live ? "live" : ""}`} aria-hidden="true">
       <svg viewBox="0 0 160 160"><g transform="rotate(-28 80 80)"><ellipse cx="78" cy="62" rx="42" ry="50" fill="#121212" /><ellipse cx="78" cy="62" rx="30" ry="37" fill="none" stroke="#f6b90a" strokeWidth="1.5" strokeDasharray="3 6" /><rect x="70" y="108" width="16" height="46" rx="6" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /></g>
-        <g opacity={live ? 0 : 1}><circle cx="122" cy="118" r="24" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><g fill="#121212"><circle cx="113" cy="110" r="3" /><circle cx="126" cy="106" r="3" /><circle cx="120" cy="121" r="3" /><circle cx="133" cy="124" r="3" /><circle cx="112" cy="128" r="3" /></g></g></svg>
-      <Ball3D enter="roll" onReady={() => setLive(true)} />
+        <circle cx="122" cy="118" r="24" fill="#ffffff" stroke="#121212" strokeWidth="2.5" /><g fill="#121212"><circle cx="113" cy="110" r="3" /><circle cx="126" cy="106" r="3" /><circle cx="120" cy="121" r="3" /><circle cx="133" cy="124" r="3" /><circle cx="112" cy="128" r="3" /></g></svg>
+      <Ball3D enter="paddle" fit={0.27} onReady={() => setLive(true)} />
     </div>
   );
 }
