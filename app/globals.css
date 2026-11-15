@@ -73,7 +73,16 @@ main{padding-block:6px calc(120px + env(safe-area-inset-bottom,0px))}
 .hero .eyebrow{font-size:.78rem;font-weight:600}
 .hero .clock{font-family:var(--f-display);font-weight:700;font-size:1.7rem;line-height:1.05;font-variant-numeric:tabular-nums}
 .hero .clock small{font-family:var(--f);font-size:.8rem;font-weight:600;opacity:.7;margin-left:4px}
-.hero h1{font-size:clamp(1.5rem,5.5vw,1.9rem);max-width:16ch}
+.hero h1{font-size:clamp(1.5rem,5.5vw,2.1rem);max-width:24ch;overflow-wrap:anywhere}
+.hero-info{display:grid;gap:10px;min-width:0;align-content:start}
+.hero-top .toppill{flex:none;white-space:nowrap}
+.hero .clock small{white-space:nowrap}
+.hero-here{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.84rem;font-weight:500}
+/* Wide screens: event details on the left, the court gauge on the right */
+@media (min-width:760px){
+  .hero{grid-template-columns:minmax(0,1fr) minmax(0,340px);gap:28px;align-items:end}
+  .hero-info{padding-bottom:22px;align-self:start}
+}
 .hero .meta{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:.84rem;font-weight:500}
 .hero .meta span{display:inline-flex;align-items:center;gap:5px}
 .hero .meta svg.i{width:15px;height:15px}
@@ -83,9 +92,8 @@ main{padding-block:6px calc(120px + env(safe-area-inset-bottom,0px))}
 .gauge-label b{font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:.02em}
 .gauge{width:100%;max-width:340px;height:auto;display:block}
 .gauge text{font-family:var(--f);font-size:10px;font-weight:700;fill:#ffffff}
-.go{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;background:none;border:0;padding:0;cursor:pointer}
-.go i{width:46px;height:46px;border-radius:50%;background:var(--card);border:var(--b)}
-.go b{width:46px;height:46px;border-radius:50%;background:var(--black);color:var(--lime);display:grid;place-items:center;margin-left:-22px;font-size:1.2rem}
+.gauge text.on{fill:#111111}
+.go{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap}
 .ball,.hero-emoji,.boost-emoji{display:none}
 .toppill{display:inline-flex;align-items:center;gap:6px;border:var(--b);border-radius:999px;padding:2px 10px;font-size:.74rem;font-weight:700;background:var(--card)}
 .toppill .dot.live{background:var(--ok)}
@@ -385,7 +393,6 @@ td:first-child{font-weight:700}
   .celebrate .big{animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
   .done-badge{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
   .gauge .needle{transition:transform .8s cubic-bezier(.2,1.2,.4,1)}
-  .go b{transition:transform .2s}.go:hover b{transform:translateX(4px)}
   @keyframes pop{from{transform:scale(.3)}to{transform:scale(1)}}
   .confetti i{animation:fall 2.4s ease-in forwards}
   @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}

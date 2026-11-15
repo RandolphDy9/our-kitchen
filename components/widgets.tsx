@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useApp, set } from "@/lib/store";
 import {
-  CAT_SHORT, anyP, at, cLabel, done, dur, first, fmtClock, fmtTime, isAdminView, kudosTotal, live, me, pById, pName,
+  CAT_SHORT, anyP, at, cLabel, done, dur, first, fmtClock, fmtDate, fmtTime, isAdminView, kudosTotal, live, me, pById, pName,
   reactionsOf, standings,
 } from "@/lib/model";
 import { reopen } from "@/lib/actions";
@@ -29,10 +29,11 @@ function Gauge({ L, N, liveSet }: { L: number; N: number; liveSet: Set<number | 
   const n = Math.max(1, N), segs: ReactNode[] = [], labels: ReactNode[] = [], ticks: ReactNode[] = [];
   for (let i = 1; i <= n; i++) {
     const a0 = (i - 1) / n, a1 = i / n, am = (a0 + a1) / 2;
-    if (liveSet.has(i)) segs.push(<path key={"s" + i} d={arc(a0 + 0.004, a1 - 0.004, r + 14, r + 2)} fill="#f6b90a" />);
+    const on = liveSet.has(i);
+    if (on) segs.push(<path key={"s" + i} d={arc(a0 + 0.006, a1 - 0.006, R - 4, r + 4)} fill="#ffffff" />);
     if (n <= 16 || i % 2) {
       const [lx, ly] = pt((R + r) / 2 + 7, am);
-      labels.push(<text key={"l" + i} x={f(lx)} y={f(ly)} textAnchor="middle" dominantBaseline="middle" transform={`rotate(${f(am * 180 - 90)} ${f(lx)} ${f(ly)})`}>{i}</text>);
+      labels.push(<text key={"l" + i} x={f(lx)} y={f(ly)} textAnchor="middle" dominantBaseline="middle" transform={`rotate(${f(am * 180 - 90)} ${f(lx)} ${f(ly)})`} className={on ? "on" : undefined}>{i}</text>);
     }
     if (i < n) {
       const [t0x, t0y] = pt(R - 3, a1), [t1x, t1y] = pt(R - 12, a1);
@@ -50,33 +51,37 @@ export function Hero({ e, go = true }: { e: EventDoc; go?: boolean }) {
   const S = useApp();
   useTick();
   const now = new Date(), st = at(e.date, e.start), en = at(e.date, e.end);
+  const inn = S.players.filter((p) => p.checkedIn).sort((a, b) => (b.checkedInAt || "").localeCompare(a.checkedInAt || ""));
+  const N = e.courts || 0, lv = live(S), L = lv.length;
   let big = "–", small = "", state: ReactNode = "";
   if (st && en) {
     if (now < st) { big = dur(+st - +now); small = "to first serve"; state = "Upcoming"; }
     else if (now <= en) { big = dur(+en - +now); small = "left to play"; state = <><span className="dot live" />Live</>; }
+    // Past the end time but games are still on: it isn't wrapped up yet.
+    else if (L) { big = dur(+now - +en); small = "over time"; state = <><span className="dot live" />Still playing</>; }
     else { big = dur(+en - +st); small = "played"; state = "Wrapped up"; }
   }
-  const inn = S.players.filter((p) => p.checkedIn).sort((a, b) => (b.checkedInAt || "").localeCompare(a.checkedInAt || ""));
-  const N = e.courts || 0, lv = live(S), L = lv.length;
   return (
     <section className="hero">
-      <div className="hero-top">
-        <div><span className="eyebrow">Event clock</span><div className="clock">{big}<small>{small}</small></div></div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <span className="stack">{inn.slice(0, 3).map((p) => <Av key={p.id} p={p} />)}</span>
-          {inn.length > 3 ? <span className="pill dark">+{inn.length - 3}</span> : null}
+      <div className="hero-info">
+        <div className="hero-top">
+          <div><span className="eyebrow">Event clock</span><div className="clock">{big}<small>{small}</small></div></div>
+          {state ? <span className="toppill">{state}</span> : null}
         </div>
-      </div>
-      <h1>{e.name}</h1>
-      <div className="meta">
-        <span><Icon n="pin" />{e.venue || "Venue TBA"}</span>
-        <span><Icon n="clock" />{fmtTime(e.start)}–{fmtTime(e.end)}</span>
-        {state ? <span className="toppill">{state}</span> : null}
+        <h1>{e.name}</h1>
+        <div className="meta">
+          <span><Icon n="pin" />{e.venue || "Venue TBA"}</span>
+          <span><Icon n="clock" />{fmtDate(e.date)} · {fmtTime(e.start)}–{fmtTime(e.end)}</span>
+        </div>
+        <div className="hero-here">
+          {inn.length ? <span className="stack">{inn.slice(0, 5).map((p) => <Av key={p.id} p={p} />)}</span> : null}
+          <span>{inn.length ? <><b>{inn.length}</b> of {S.players.length} checked in</> : S.players.length ? "No one has checked in yet" : "No players yet"}</span>
+        </div>
       </div>
       <div className="gauge-wrap">
         <div className="gauge-label"><span>Courts in play</span><b>{L} / {N}</b></div>
         <Gauge L={L} N={N} liveSet={new Set(lv.map((m) => m.court))} />
-        {go ? <button className="go" onClick={() => set({ tab: "courts" })} aria-label="Open the court board"><i /><b>→</b></button> : null}
+        {go ? <button className="btn sm go" onClick={() => set({ tab: "courts" })}>Courts<span aria-hidden="true"> →</span></button> : null}
       </div>
     </section>
   );
