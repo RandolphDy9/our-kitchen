@@ -110,8 +110,17 @@ export function PhotosPage() {
   const ph = [...S.photos].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   return (
     <div className="view">
+      <header className="ph-intro">
+        <h2>Event photos</h2>
+        <p>{admin ? "One shared album for the whole event. Players add their own shots, and you can add photos for any player." : "One shared album for the whole event. Add your shots from today and see everyone else's."}</p>
+        <ul>
+          <li><span className="ph-ic"><Icon n="plus" /></span><span><b>Add</b>{admin ? "Up to 5 per player" : "Up to 5 photos"}</span></li>
+          <li><span className="ph-ic"><Icon n="heart" /></span><span><b>React</b>Tap a photo to heart or comment</span></li>
+          <li><span className="ph-ic"><Icon n="download" /></span><span><b>Save</b>Keep any photo, or all of them</span></li>
+        </ul>
+      </header>
       <section className="card lav">
-        <div className="sec-head"><h2>Your photos</h2><span className="small" style={{ opacity: 0.75 }}>Up to 5 each</span></div>
+        <div className="sec-head"><h2>{admin ? "Add photos" : "Your photos"}</h2><span className="small" style={{ opacity: 0.75 }}>Up to 5 each</span></div>
         {admin ? (
           <div className="field"><label htmlFor="ph-who">Uploading for</label>
             <Select id="ph-who" value={who} onChange={setWho} placeholder="Pick a player"
@@ -136,7 +145,7 @@ export function PhotosPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {photoSrc(S, p) ? <img src={photoSrc(S, p)} alt="" loading="lazy" /> : null}<span>{pName(S, p.playerId)}</span><PhMeta p={p} />
           </button>
-        )) : <div className="empty" style={{ gridColumn: "1/-1" }}><span className="sq"><Icon n="image" /></span><p>No photos yet. Everyone&apos;s shots from today land here. Tap any photo to heart it, comment or download it.</p></div>}
+        )) : <div className="empty" style={{ gridColumn: "1/-1" }}><span className="sq"><Icon n="image" /></span><p>No photos yet. Be the first to add one.</p></div>}
       </div>
     </div>
   );

@@ -637,6 +637,15 @@ body::before{display:none}
 .alerts summary .al-sum{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .alerts summary .al-sum svg.i{width:20px;height:20px;flex:none}
 .alerts:not([open]){padding-block:10px}
+/* Photos tab: what it's for, in one line and three short points */
+.ph-intro{display:grid;gap:8px}
+.ph-intro > p{color:var(--muted);font-size:.95rem;max-width:60ch}
+.ph-intro ul{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ph-intro li{display:grid;gap:8px;align-content:start;justify-items:start;border:var(--b);background:var(--card);padding:10px;font-size:.8rem;line-height:1.3;color:var(--muted)}
+.ph-intro li b{display:block;color:var(--ink);font-family:var(--f-display);text-transform:uppercase;font-size:.95rem;letter-spacing:.02em}
+.ph-ic{width:32px;height:32px;display:grid;place-items:center;background:var(--lime);border:var(--b)}
+.ph-ic svg.i{width:17px;height:17px;stroke-width:2.2}
+@media (max-width:340px){.ph-intro ul{grid-template-columns:minmax(0,1fr)}.ph-intro li{grid-template-columns:auto minmax(0,1fr);align-items:center}}
 /* Level badges: the club's own level names, with 1 to 3 bars (Novice, Intermediate, Advanced) */
 .chip.lvl{gap:6px;padding:2px 9px}
 .lv-bars{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
