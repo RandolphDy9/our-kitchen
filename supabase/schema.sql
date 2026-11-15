@@ -236,6 +236,7 @@ create policy photos_delete on storage.objects for delete to authenticated
 -- ---------- Moving a check-in to another app or phone ----------
 -- On iPhone a Home Screen app keeps its own storage, so a player who checked in in Safari is a stranger there.
 -- The device holding the check-in shows a 4-digit code and the new one enters it. Codes last 10 minutes, 5 tries.
+-- If that device is gone, an organizer makes the code for the player instead.
 create table if not exists public.checkin_moves (
   col text not null,
   id text not null,
@@ -247,20 +248,26 @@ create table if not exists public.checkin_moves (
 );
 alter table public.checkin_moves enable row level security;
 -- No policies on purpose: only the two functions below read or write it.
+-- by_admin: an event admin made the code for a player whose phone is gone (app deleted, new phone).
+alter table public.checkin_moves add column if not exists by_admin boolean not null default false;
 
+-- The player's own device, or an admin of the event, can make the code.
 create or replace function public.ok_move_code(p_col text, p_id text) returns text
   language plpgsql volatile security definer set search_path = public as $$
-declare c text;
+declare c text; holder text; me text := public.ok_uid(); admin boolean;
 begin
-  if p_col not like 'checkins/%' or public.ok_uid() = '' or not exists (
-    select 1 from public.docs where col = p_col and id = p_id and data ->> 'uid' = public.ok_uid()
-  ) then
+  if p_col not like 'checkins/%' or me = '' then
+    raise exception 'Not your check-in' using errcode = '42501';
+  end if;
+  select data ->> 'uid' into holder from public.docs where col = p_col and id = p_id;
+  admin := holder is distinct from me and public.ok_is_event_admin(split_part(p_col, '/', 2));
+  if coalesce(holder, '') = '' or (holder <> me and not admin) then
     raise exception 'Not your check-in' using errcode = '42501';
   end if;
   c := lpad(floor(random() * 10000)::int::text, 4, '0');
-  insert into public.checkin_moves (col, id, uid, code, tries, expires)
-  values (p_col, p_id, public.ok_uid(), c, 0, now() + interval '10 minutes')
-  on conflict (col, id) do update set uid = excluded.uid, code = excluded.code, tries = 0, expires = excluded.expires;
+  insert into public.checkin_moves (col, id, uid, code, tries, expires, by_admin)
+  values (p_col, p_id, holder, c, 0, now() + interval '10 minutes', admin)
+  on conflict (col, id) do update set uid = excluded.uid, code = excluded.code, tries = 0, expires = excluded.expires, by_admin = excluded.by_admin;
   return c;
 end $$;
 
@@ -278,8 +285,9 @@ begin
   end if;
   update public.docs set data = data || jsonb_build_object('uid', me), updated_at = now()
     where col = p_col and id = p_id and data ->> 'uid' = m.uid;
-  -- A club admin stays an admin on the new device, in every club they help run.
-  if m.uid <> me then
+  -- A club admin stays an admin on the new device, in every club they help run. Only when the player made the
+  -- code themselves: a code from another admin moves the check-in, never anyone's admin rights.
+  if m.uid <> me and not m.by_admin then
     insert into public.docs (col, id, data)
       select col, me, data from public.docs where col like 'members/%' and id = m.uid
       on conflict (col, id) do update set data = excluded.data, updated_at = now();

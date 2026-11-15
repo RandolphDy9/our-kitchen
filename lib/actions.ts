@@ -104,6 +104,15 @@ export async function showMoveCode(): Promise<string | null> {
     return null;
   }
 }
+/** Organizer: a code for a player whose phone no longer has their check-in (app deleted, new phone). */
+export async function playerCode(id: string): Promise<string | null> {
+  try {
+    return await db().moveCode(`${col.checkins()}/${id}`);
+  } catch {
+    toast("Couldn't make a code. Check your connection and try again.");
+    return null;
+  }
+}
 export async function moveIn(id: string, code: string): Promise<boolean> {
   try {
     if (!(await db().moveCheckin(`${col.checkins()}/${id}`, code))) return false;

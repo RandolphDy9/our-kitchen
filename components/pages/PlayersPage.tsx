@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useApp, set } from "@/lib/store";
 import { busy, fmtClock, gamesPlayed, kudosTotal, live, me, reactionsOf, tally } from "@/lib/model";
-import { clearDemo, delPlayer, setGender, toggleIn, toggleReaction } from "@/lib/actions";
+import { clearDemo, delPlayer, playerCode, setGender, toggleIn, toggleReaction } from "@/lib/actions";
 import type { Player } from "@/lib/types";
 import { Av, LvlChip, Tally } from "../ui";
 import { Fans } from "../widgets";
@@ -12,7 +12,14 @@ type PF = { q: string; g: string; lvl: string; st: string };
 export function PlayersPage() {
   const S = useApp();
   const [f, setF] = useState<PF>({ q: "", g: "all", lvl: "all", st: "all" });
-  const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  // Codes made for a player whose phone lost their check-in, shown on that player's row.
+  const [codes, setCodes] = useState<Record<string, string>>({});
+  const makeCode = async (id: string) => {
+    setMenu(null);
+    const c = await playerCode(id);
+    if (c) setCodes((x) => ({ ...x, [id]: c }));
+  };
   const i = S.players.filter((p) => p.checkedIn).length;
   const gp = gamesPlayed(S), b = busy(S), courtOf: Record<string, number | null> = {};
   live(S).forEach((m) => [...m.teamA, ...m.teamB].forEach((id) => (courtOf[id] = m.court)));
@@ -55,10 +62,19 @@ export function PlayersPage() {
               </div>
               <div className="acts">
                 <button className={`btn sm ${p.checkedIn ? "soft" : "dark"}`} onClick={() => toggleIn(p.id)}>{p.checkedIn ? "Undo" : "Check in"}</button>
-                {confirmDel === p.id
-                  ? <><button className="btn sm danger" onClick={() => { setConfirmDel(null); delPlayer(p.id); }}>Remove</button><button className="btn sm ghost" onClick={() => setConfirmDel(null)}>Keep</button></>
-                  : <button className="btn sm ghost" onClick={() => setConfirmDel(p.id)} aria-label={`Remove ${p.name}`}>⋯</button>}
+                {menu === p.id ? <>
+                  {p.checkedIn && p.uid ? <button className="btn sm dark" onClick={() => makeCode(p.id)}>Phone code</button> : null}
+                  <button className="btn sm danger" onClick={() => { setMenu(null); delPlayer(p.id); }}>Remove</button>
+                  <button className="btn sm ghost" onClick={() => setMenu(null)}>Close</button>
+                </> : <button className="btn sm ghost" onClick={() => setMenu(p.id)} aria-label={`More for ${p.name}`}>⋯</button>}
               </div>
+              {codes[p.id] ? (
+                <div className="move-code player-code" role="status">
+                  <span>Code for {p.name}</span><b className="num">{codes[p.id]}</b>
+                  <p className="small">On their phone: open Qsina, tap their name and enter this code. It works for 10 minutes. Their check-in, games and alerts move to that phone.</p>
+                  <button className="btn sm ghost" onClick={() => setCodes(({ [p.id]: _, ...x }) => x)}>Done</button>
+                </div>
+              ) : null}
             </div>
           ))}</div> : <div className="empty">No players match.</div>}
         </div>

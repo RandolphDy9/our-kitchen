@@ -6,7 +6,7 @@ import { ownerEmail, type AuthUser, type Backend, type Data, type Doc } from "./
    player views side by side. Use Supabase for a real event. */
 
 type Store = Record<string, Record<string, Data>>;
-type Move = { uid: string; code: string; tries: number; expires: number };
+type Move = { uid: string; code: string; tries: number; expires: number; byAdmin?: boolean };
 const KEY = "ourkitchen.localdb";
 const UKEY = "ourkitchen.localuser";
 const MOVES = "_moves";
@@ -135,10 +135,12 @@ export function createLocalBackend(): Backend {
     },
     // Demo mode mirrors the Supabase functions, so the flow can be tried in two tabs.
     async moveCode(path) {
-      const [col, id] = split(path), s = read(), u = getUser();
-      if (!u || s[col]?.[id]?.uid !== u.uid) throw Object.assign(new Error("Not your check-in"), { code: "42501" });
+      const [col, id] = split(path), s = read(), u = getUser(), holder = s[col]?.[id]?.uid as string | undefined;
+      // The player's own device, or the organizer (signed in, not a guest) for a player whose phone is gone.
+      const byAdmin = !!u && holder !== u.uid && !u.anonymous;
+      if (!u || !holder || (holder !== u.uid && !byAdmin)) throw Object.assign(new Error("Not your check-in"), { code: "42501" });
       const code = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-      s[MOVES] = { ...(s[MOVES] || {}), [path]: { uid: u.uid, code, tries: 0, expires: Date.now() + 10 * 60000 } };
+      s[MOVES] = { ...(s[MOVES] || {}), [path]: { uid: holder, code, tries: 0, expires: Date.now() + 10 * 60000, byAdmin } };
       write(s);
       return code;
     },
@@ -151,9 +153,9 @@ export function createLocalBackend(): Backend {
         return false;
       }
       if (s[col]?.[id]?.uid === m.uid) s[col][id] = { ...s[col][id], uid: u.uid };
-      // A club admin stays an admin on the new phone.
+      // A club admin stays an admin on the new phone (only when they made the code themselves).
       const clubs: string[] = [];
-      if (m.uid !== u.uid) for (const c of Object.keys(s).filter((k) => k.startsWith("members/") && s[k][m.uid])) {
+      if (m.uid !== u.uid && !m.byAdmin) for (const c of Object.keys(s).filter((k) => k.startsWith("members/") && s[k][m.uid])) {
         s[c][u.uid] = s[c][m.uid];
         delete s[c][m.uid];
         clubs.push(c);
