@@ -5,6 +5,7 @@ import { busy, fmtClock, gamesPlayed, kudosTotal, live, me, reactionsOf, tally }
 import { clearDemo, delPlayer, setGender, toggleIn, toggleReaction } from "@/lib/actions";
 import type { Player } from "@/lib/types";
 import { Av, LvlChip, Tally } from "../ui";
+import { Fans } from "../widgets";
 
 type PF = { q: string; g: string; lvl: string; st: string };
 
@@ -90,7 +91,8 @@ export function PeoplePage() {
   return (
     <div className="view">
       <div className="sec-head"><h2>Hype your fellow players</h2></div>
-      <p className="small muted" style={{ marginTop: -10 }}>Tap a reaction to give it. Tap again to take it back. Everyone&apos;s totals show on the leaderboards.</p>
+      <p className="small muted" style={{ marginTop: -10 }}>Tap a reaction to give it. Tap again to take it back.</p>
+      {S.kudos.length ? <section className="card"><div className="sec-head"><h2>Crowd favourites</h2><span className="seeall">Reactions</span></div><Fans /></section> : null}
       <div className="field"><label htmlFor="rq" className="lbl">Search</label><input id="rq" type="search" placeholder="Find a player" value={rq} onChange={(e) => setRq(e.target.value)} /></div>
       <div className="list">
         {!list.length ? <div className="empty">{q ? "No one matches." : "Players show up here once they check in."}</div> : list.map((p) => (

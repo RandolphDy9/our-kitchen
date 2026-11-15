@@ -619,6 +619,12 @@ body::before{display:none}
 .story summary::after{content:"+";width:32px;height:32px;display:grid;place-items:center;border:var(--b);background:var(--lime);font-family:var(--f);font-weight:800;flex:none}
 .story[open] summary::after{content:"\2212"}
 .story summary small{font-family:var(--f);text-transform:none;letter-spacing:0;font-size:.85rem;font-weight:500;color:var(--muted);margin-left:6px}
+/* Folded pool standings (players' Results tab) */
+.pool-div{gap:14px}
+.pool-div:not([open]){padding-block:10px}
+.pool-div summary{font-size:1.15rem}
+.pool-div summary .tag{margin-left:auto;font-family:var(--f);letter-spacing:0}
+.pool-div .pd-name{min-width:0}
 .story ol{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:12px}
 .story li{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start}
 .story li > b{height:44px;display:grid;place-items:center;border:var(--b);background:var(--ink);color:var(--lime);font-family:var(--f-display);font-size:1rem;letter-spacing:.03em;text-transform:uppercase}

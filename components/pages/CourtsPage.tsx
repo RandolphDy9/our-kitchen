@@ -285,31 +285,44 @@ function Schedule() {
   );
 }
 
-function Pools() {
-  const S = useApp(), mid = me(S)?.id;
+/** Pool tables per division. Admins see every division open. Players (on Results) see their own divisions
+    first and open, the rest folded so a big event isn't one long scroll on a phone. */
+export function Pools() {
+  const S = useApp(), mid = me(S)?.id, admin = isAdminView(S);
   if (!S.divs.length) return <div className="empty">No pools yet.</div>;
+  const isMine = (d: (typeof S.divs)[number]) => !!mid && d.teams.some((t) => t.players.includes(mid));
+  const divs = admin ? S.divs : [...S.divs].sort((a, b) => Number(isMine(b)) - Number(isMine(a)));
   return (
-    <div className="view" style={{ gap: 16 }}>{S.divs.map((d) => {
-      const pools = d.pools.length ? d.pools : [null], q = qualCount(S, d), wild = seedInfo(S, d)?.wild || 0;
-      return (
+    <div className="view" style={{ gap: 12 }}>{divs.map((d) => {
+      const pools = d.pools.length ? d.pools : [null], q = qualCount(S, d), wild = seedInfo(S, d)?.wild || 0, mine = isMine(d);
+      const body = <>
+        <div className="pools">{pools.map((p) => {
+          const pt = poolTable(S, d, p);
+          return (
+            <div className="pool" key={p || "rr"}>
+              <div className="pool-h"><b>{p ? `Pool ${p}` : "Round robin"}</b><span>{pt.played}/{pt.total} played{pt.complete ? " · Final" : ""}</span></div>
+              <div className="tbl-wrap"><table className="ptable"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
+                {pt.rows.map((r, i) => {
+                  const isMe = !!mid && r.t.players.includes(mid);
+                  return <tr key={r.t.id} className={`${i < q ? "q" : ""} ${isMe ? "me" : ""}`}><td>{i + 1}</td><td>{teamName(S, r.t)}{isMe ? " ★" : ""}</td><td>{r.w}</td><td>{r.l}</td><td>{r.pf - r.pa > 0 ? "+" : ""}{r.pf - r.pa}</td></tr>;
+                })}
+              </tbody></table></div>
+            </div>
+          );
+        })}</div>
+        <p className="small muted">{q ? `Top ${q} ${d.pools.length ? "in each pool" : "teams"} move on to the playoffs (highlighted)${wild ? `, plus the ${wild === 1 ? "best other team" : `${wild} best other teams`} as wildcard${wild === 1 ? "" : "s"}` : ""}. ` : ""}Ties break on point difference, then points scored.</p>
+      </>;
+      if (admin) return (
         <section className="card" key={d.id}>
           <div className="sec-head"><h2>{divName(d)}</h2><span className={`tag ${d.cat}`}>{d.teams.length} teams</span></div>
-          <div className="pools">{pools.map((p) => {
-            const pt = poolTable(S, d, p);
-            return (
-              <div className="pool" key={p || "rr"}>
-                <div className="pool-h"><b>{p ? `Pool ${p}` : "Round robin"}</b><span>{pt.played}/{pt.total} played{pt.complete ? " · Final" : ""}</span></div>
-                <div className="tbl-wrap"><table className="ptable"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
-                  {pt.rows.map((r, i) => {
-                    const isMe = !!mid && r.t.players.includes(mid);
-                    return <tr key={r.t.id} className={`${i < q ? "q" : ""} ${isMe ? "me" : ""}`}><td>{i + 1}</td><td>{teamName(S, r.t)}{isMe ? " ★" : ""}</td><td>{r.w}</td><td>{r.l}</td><td>{r.pf - r.pa > 0 ? "+" : ""}{r.pf - r.pa}</td></tr>;
-                  })}
-                </tbody></table></div>
-              </div>
-            );
-          })}</div>
-          <p className="small muted">{q ? `Top ${q} ${d.pools.length ? "in each pool" : "teams"} move on to the playoffs (highlighted)${wild ? `, plus the ${wild === 1 ? "best other team" : `${wild} best other teams`} as wildcard${wild === 1 ? "" : "s"}` : ""}. ` : ""}Ties break on point difference, then points scored.</p>
+          {body}
         </section>
+      );
+      return (
+        <details className="card story pool-div" key={d.id} open={mine || S.divs.length === 1}>
+          <summary><span className="pd-name">{divName(d)}</span><span className={`tag ${d.cat}`}>{d.teams.length} teams</span></summary>
+          {body}
+        </details>
       );
     })}</div>
   );
@@ -317,13 +330,18 @@ function Pools() {
 
 export function CourtsPage() {
   const S = useApp();
-  const admin = isAdminView(S), hasSched = S.sched.length > 0, sv: CView = hasSched ? S.cview || "schedule" : "board";
+  const admin = isAdminView(S), hasSched = S.sched.length > 0;
+  // Players: live courts first; their pool standings live on the Results tab. Admins keep all three here.
+  const views: (readonly [CView, string])[] = admin
+    ? [["schedule", "Schedule"], ["pools", "Pools"], ["board", "Live courts"]]
+    : [["board", "Live courts"], ["schedule", "Schedule"]];
+  const sv: CView = !hasSched ? "board" : views.some(([k]) => k === S.cview) ? S.cview! : views[0][0];
   return (
     <div className="view">
       {admin ? null : <><MyBanner /><MyGames /><AlertsCard /><div style={{ display: "grid", gap: 14 }}><Road /></div></>}
       {hasSched ? (
         <div className="seg" role="group" aria-label="Courts view">
-          {([["schedule", "Schedule"], ["pools", "Pools"], ["board", "Live courts"]] as const).map(([k, l]) =>
+          {views.map(([k, l]) =>
             <button key={k} aria-pressed={sv === k} onClick={() => set({ cview: k, sScoring: null })}>{l}</button>)}
         </div>
       ) : null}
