@@ -327,12 +327,69 @@ export function parseSchedule(rows: Cell[][]): Parsed {
     po.filter((p) => p.stage === "bronze").forEach((p) => push(p, "b", "bronze",
       hasSF ? { l: "s1" } : { rank: p.top ? p.top[0] : 3 }, hasSF ? { l: "s2" } : { rank: p.top ? p.top[1] : 4 }, "Bronze"));
   }
+  const fixedPO = repairPlayoffs<RGame>(outDivs, outSched);
+  outSched.splice(0, outSched.length, ...fixedPO.sched.map(({ added: _a, res: _r, live: _l, ...x }) => x));
   checkSchedule(outDivs, outSched, outPlayers, checks);
+  checks.unshift(...fixedPO.notes);
   const courts = Math.max(0, ...cols.map((c) => c.court));
   return { players: outPlayers, divs: outDivs, sched: outSched, skipped, checks, warnings, courts, courtNames, start: slots[0]?.start || null, end: slots.at(-1)?.end || null, slots: slots.length };
 }
 
 const CAT_NAME: Record<string, string> = { mens: "Men's", womens: "Women's", mixed: "Mixed" };
+/* ---------- playoff repair ---------- */
+type RGame = ParsedSched & { res?: unknown; live?: unknown; added?: boolean };
+const sameRef = (x: SRef, y: SRef) => JSON.stringify(x) === JSON.stringify(y);
+/** Club sheets often get the playoff cells slightly wrong: semifinals that name pool places after quarterfinals,
+    semifinals that name quarterfinal winners when there are no quarterfinals, or no semifinals at all between the
+    quarterfinals and the final. A bracket can only work one way, so fix these instead of showing teams that never
+    earned their spot. Games already started or scored are left as played. Added semifinals are flagged `added`
+    (the stored schedule doesn't have them yet) and take a free court in a time slot between the rounds. */
+export function repairPlayoffs<G extends RGame>(divs: { id: string; cat: Cat | null; level: string; pools: string[] }[], sched: G[]): { sched: G[]; notes: string[] } {
+  const out = [...sched], notes: string[] = [];
+  const slotTimes = new Map<number, { time: string; end: string }>();
+  for (const x of sched) if (!slotTimes.has(x.slot)) slotTimes.set(x.slot, { time: x.time, end: x.end });
+  const maxCourt = Math.max(0, ...sched.map((x) => x.court));
+  const open = (x: G) => !x.res && !x.live;
+  const setRefs = (x: G, a: SRef, b: SRef) => {
+    if (!open(x) || (sameRef(x.a, a) && sameRef(x.b, b))) return false;
+    out[out.indexOf(x)] = { ...x, a, b };
+    return true;
+  };
+  for (const d of divs) {
+    const dn = divLabel(d), g = (k: string) => out.find((x) => x.div === d.id && x.key === k);
+    const qf = ["q1", "q2", "q3", "q4"].map(g), s1 = g("s1"), s2 = g("s2"), f = g("f"), b = g("b");
+    const hasQF = qf.every(Boolean), anyQF = qf.some(Boolean);
+    if (hasQF && s1 && s2) {
+      const fixed = [setRefs(s1, { w: "q1" }, { w: "q2" }), setRefs(s2, { w: "q3" }, { w: "q4" })].some(Boolean);
+      if (fixed) notes.push(`${dn}: the semifinals now use the quarterfinal winners (QF1 vs QF2, QF3 vs QF4). The sheet had pool places there.`);
+    } else if (hasQF && !s1 && !s2 && (f || b)) {
+      const after = Math.max(...qf.map((x) => x!.slot)), before = Math.min(...[f, b].filter(Boolean).map((x) => x!.slot));
+      const pick = [...slotTimes.keys()].filter((s) => s > after && s < before).sort((x, y) => x - y).map((s) => {
+        const busy = new Set(out.filter((x) => x.slot === s).map((x) => x.court));
+        return { s, free: Array.from({ length: maxCourt }, (_, i) => i + 1).filter((c) => !busy.has(c)) };
+      }).find((x) => x.free.length >= 2);
+      if (pick) {
+        const t = slotTimes.get(pick.s)!, base = qf[0]!;
+        const mk = (k: string, n: number, court: number, a: SRef, bb: SRef) => ({ ...base, id: d.id + k, key: k, stage: "sf", pool: null, slot: pick.s, time: t.time, end: t.end, court, a, b: bb, label: "SF" + n, res: null, live: null, added: true } as G);
+        out.push(mk("s1", 1, pick.free[0], { w: "q1" }, { w: "q2" }), mk("s2", 2, pick.free[1], { w: "q3" }, { w: "q4" }));
+        if (f) setRefs(f, { w: "s1" }, { w: "s2" });
+        if (b) setRefs(b, { l: "s1" }, { l: "s2" });
+        notes.push(`${dn}: the sheet has no semifinals, so they were added at ${t.time} on Courts ${pick.free[0]} and ${pick.free[1]}. The final and bronze now use their results.`);
+      }
+    } else if (!anyQF && s1 && s2 && [s1, s2].some((x) => [x.a, x.b].some((r) => r.w?.startsWith("q")))) {
+      const P = d.pools;
+      const [a1, b2, b1, a2]: SRef[] = P.length === 2
+        ? [{ pool: P[0], rank: 1 }, { pool: P[1], rank: 2 }, { pool: P[1], rank: 1 }, { pool: P[0], rank: 2 }]
+        : P.length === 1 ? [{ pool: P[0], rank: 1 }, { pool: P[0], rank: 4 }, { pool: P[0], rank: 2 }, { pool: P[0], rank: 3 }]
+        : P.length ? [{ seed: 1, adv: 1 }, { seed: 4, adv: 1 }, { seed: 2, adv: 1 }, { seed: 3, adv: 1 }]
+        : [{ rank: 1 }, { rank: 4 }, { rank: 2 }, { rank: 3 }];
+      const fixed = [setRefs(s1, a1, b2), setRefs(s2, b1, a2)].some(Boolean);
+      if (fixed) notes.push(`${dn}: there are no quarterfinals, so the semifinals now use the pool standings instead of quarterfinal winners.`);
+    }
+  }
+  return { sched: out, notes };
+}
+
 const divLabel = (d: { cat: Cat | null; level: string }) => `${CAT_NAME[d.cat || ""] || "?"} ${d.level}`;
 const list = (xs: string[]) => (xs.length <= 2 ? xs.join(" and ") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1));
 

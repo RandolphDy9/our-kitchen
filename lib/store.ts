@@ -19,6 +19,8 @@ export type AppState = {
   events: EventDoc[]; eventId: string | null; fromQR: boolean;
   roster: Player[]; checkins: Checkin[]; players: Player[]; matches: Match[]; photos: Photo[];
   kudos: Kudos[]; hearts: Heart[]; comments: Comment[]; brackets: Bracket[]; sched: Sched[]; divs: Div[];
+  /** The schedule as stored. `sched` is this with broken playoff cells repaired (see repairPlayoffs). */
+  schedRaw: Sched[];
   /** Signed links for private photos, by storage path, and when they were made. */
   photoUrls: Record<string, { url: string; at: number }>;
   loaded: Record<string, boolean>;
@@ -33,7 +35,7 @@ export type AppState = {
 
 export const initialEventState = {
   roster: [], checkins: [], players: [], matches: [], photos: [], kudos: [], hearts: [], comments: [],
-  brackets: [], sched: [], divs: [], loaded: {}, tab: null, scoring: null, cview: null, sdiv: "all",
+  brackets: [], sched: [], schedRaw: [], divs: [], loaded: {}, tab: null, scoring: null, cview: null, sdiv: "all",
   sScoring: null, bkId: null, viewPhoto: null,
 } satisfies Partial<AppState>;
 

@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { parseSchedule, seedOrder, type Parsed } from "../lib/schedule.ts";
+import { parseSchedule, repairPlayoffs, seedOrder, type Parsed } from "../lib/schedule.ts";
 import { sampleRows } from "../lib/sample.ts";
 
 type Rows = (string | null)[][];
@@ -36,12 +36,35 @@ test("club sheet with & / and partners, 'Advance' levels and seeded wildcards im
 test("club sheet: the schedule checks catch the real problems in it", () => {
   const p = parseSchedule(fixture("flex-club-schedule.json"));
   hasCheck(p, /^Risa is on two courts at 16:00/);
-  hasCheck(p, /^Mixed Novice: has quarterfinals and a final but no semifinals/);
-  hasCheck(p, /^Men's Advanced: has quarterfinals, but its semifinals use pool places/);
-  hasCheck(p, /^Mixed Advanced SF1: uses the winners of QF1 and QF2/);
+  hasCheck(p, /^Mixed Novice: the sheet has no semifinals, so they were added at 18:00/);
+  hasCheck(p, /^Men's Advanced: the semifinals now use the quarterfinal winners/);
+  hasCheck(p, /^Mixed Advanced: there are no quarterfinals, so the semifinals now use the pool standings/);
   hasCheck(p, /“Lusa\/Cato” looks like two names/);
   hasCheck(p, /“Nene” is in Men's Intermediate and Men's Advanced/);
   hasCheck(p, /“Ioli” and “Ioli C\.” both appear/);
+});
+
+test("club sheet: broken playoff cells are repaired into a working bracket", () => {
+  const p = parseSchedule(fixture("flex-club-schedule.json"));
+  const po = (cat: string, level: string) => Object.fromEntries(p.sched.filter((x) => x.div === divOf(p, cat, level).id && x.key).map((x) => [x.key, [x.a, x.b]]));
+  const menAdv = po("mens", "Advanced"), mixNov = po("mixed", "Novice"), mixAdv = po("mixed", "Advanced");
+  assert.deepEqual(menAdv.s1, [{ w: "q1" }, { w: "q2" }]);
+  assert.deepEqual(menAdv.s2, [{ w: "q3" }, { w: "q4" }]);
+  assert.deepEqual(mixNov.s1, [{ w: "q1" }, { w: "q2" }]);
+  assert.deepEqual(mixNov.f, [{ w: "s1" }, { w: "s2" }]);
+  assert.deepEqual(mixNov.b, [{ l: "s1" }, { l: "s2" }]);
+  assert.deepEqual(mixAdv.s1, [{ pool: "A", rank: 1 }, { pool: "B", rank: 2 }]);
+  const slot18 = p.sched.filter((x) => x.time === "18:00").map((x) => x.court);
+  assert.equal(new Set(slot18).size, slot18.length, "added semifinals take free courts");
+});
+
+test("games already played keep their teams", () => {
+  const d = { id: "d", cat: "mens" as const, level: "Advanced", pools: ["A", "B"] };
+  const g = (key: string, a: object, b: object, res: object | null = null) => ({ id: "d" + key, div: "d", stage: "sf" as const, key, slot: 1, time: "", end: "", court: 1, a, b, label: key, res, live: null });
+  const sched = [g("q1", { seed: 1 }, { seed: 8 }), g("q2", { seed: 2 }, { seed: 7 }), g("q3", { seed: 3 }, { seed: 6 }), g("q4", { seed: 4 }, { seed: 5 }),
+    g("s1", { pool: "A", rank: 1 }, { pool: "B", rank: 2 }, { w: "a" }), g("s2", { pool: "B", rank: 1 }, { pool: "A", rank: 2 })];
+  const r = repairPlayoffs([d], sched);
+  assert.deepEqual([r.sched[4].a, r.sched[5].a], [{ pool: "A", rank: 1 }, { w: "q3" }]);
 });
 
 test("the demo schedule and the Qsina template import cleanly with no checks", () => {

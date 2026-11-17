@@ -54,4 +54,6 @@ export type Sched = {
   id: string; div: string; stage: "pool" | "qf" | "sf" | "gold" | "bronze"; key: string | null; pool: string | null;
   slot: number; time: string; end: string; court: number; a: SRef; b: SRef; label: string;
   res: Res | null; live: LiveRef | null;
+  /** Added by repairPlayoffs and not stored yet: saved the first time the game starts or gets a result. */
+  added?: boolean;
 };

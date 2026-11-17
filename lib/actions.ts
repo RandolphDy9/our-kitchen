@@ -8,7 +8,7 @@ import {
 import { nameKey, type Parsed } from "./schedule";
 import { scoreProblem } from "./score";
 import { selectEvent } from "./session";
-import type { Bracket, Cat, Level, Match, Player } from "./types";
+import type { Bracket, Cat, Level, Match, Player, Sched } from "./types";
 
 const E = () => get().eventId!;
 const now = () => new Date().toISOString();
@@ -253,6 +253,14 @@ export async function bkDelete() {
 }
 
 /* ---------- imported schedule ---------- */
+/** Before a game starts or gets a result, store any repair the app made to it (see repairPlayoffs): a game the app
+    added, or teams it corrected. Once played, a game keeps the teams it was played with. */
+async function storeFix(x: Sched) {
+  const { id, added, ...doc } = x;
+  if (added) return db().set(`${col.sched()}/${id}`, { ...doc, res: null, live: null });
+  const raw = get().schedRaw.find((r) => r.id === id);
+  if (raw && JSON.stringify([raw.a, raw.b]) !== JSON.stringify([x.a, x.b])) await db().update(`${col.sched()}/${id}`, { a: x.a, b: x.b });
+}
 export async function startSched(sid: string, courtIn?: number | string) {
   const S = get(), x = S.sched.find((s) => s.id === sid);
   if (!x) return;
@@ -262,6 +270,7 @@ export async function startSched(sid: string, courtIn?: number | string) {
   if (live(S).some((m) => m.court === court)) return toast(`Court ${court} is in use. Record that game first.`);
   const mid = uid();
   try {
+    await storeFix(x);
     await db().set(`${col.matches()}/${mid}`, { teamA: A.players, teamB: B.players, category: d.cat, level: lvlKey(d.level), court, round: 0, status: "live", createdAt: now(), sched: { s: sid, label: x.label, div: d.id } });
     await db().update(`${col.sched()}/${sid}`, { live: { court, match: mid } });
     toast(`${x.label} is on Court ${court}. The players just got an alert.`);
@@ -278,6 +287,7 @@ export async function recordSched(sid: string, w: "a" | "b", sa: number | null, 
   const t = now(), W = w === "a" ? "A" : "B";
   let mid = x.live?.match;
   try {
+    await storeFix(x);
     if (mid) await db().update(`${col.matches()}/${mid}`, { status: "done", winner: W, scoreA: sa, scoreB: sb, endedAt: t });
     else {
       mid = uid();

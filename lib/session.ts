@@ -4,7 +4,8 @@ import { ownerEmail } from "./backend/types";
 import { localOwnerEmail } from "./backend/local";
 import { get, initialEventState, ls, set, type AppState } from "./store";
 import { clubEvents, clubOf, normBr, normDiv, paths, todayISO } from "./model";
-import type { Checkin, Club, Member, Player } from "./types";
+import { repairPlayoffs } from "./schedule";
+import type { Checkin, Club, Div, Member, Player, Sched } from "./types";
 
 let unsubs: (() => void)[] = [];
 const memberSubs = new Map<string, () => void>();
@@ -156,6 +157,8 @@ export function selectEvent(id: string | null) {
       const patch: any = { [key]: docs, loaded: { ...S.loaded, [key]: true } };
       if (key === "brackets") patch.brackets = docs.map(normBr);
       if (key === "divs") patch.divs = docs.map(normDiv).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      if (key === "sched") patch.schedRaw = docs;
+      if (key === "sched" || key === "divs") patch.sched = repairPlayoffs<Sched>(patch.divs || S.divs as Div[], patch.schedRaw || S.schedRaw).sched;
       if (key === "photos") queueMicrotask(refreshPhotoUrls);
       if (key === "roster" || key === "checkins") {
         patch.players = mergePlayers(key === "roster" ? (docs as Player[]) : S.roster, key === "checkins" ? (docs as Checkin[]) : S.checkins);
