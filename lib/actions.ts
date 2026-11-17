@@ -256,10 +256,11 @@ export async function bkDelete() {
 /** Before a game starts or gets a result, store any repair the app made to it (see repairPlayoffs): a game the app
     added, or teams it corrected. Once played, a game keeps the teams it was played with. */
 async function storeFix(x: Sched) {
-  const { id, added, ...doc } = x;
+  const { id, added, stale, ...doc } = x;
+  if (stale?.match) await db().update(`${col.matches()}/${stale.match}`, { status: "void" }).catch(() => {});
   if (added) return db().set(`${col.sched()}/${id}`, { ...doc, res: null, live: null });
   const raw = get().schedRaw.find((r) => r.id === id);
-  if (raw && JSON.stringify([raw.a, raw.b]) !== JSON.stringify([x.a, x.b])) await db().update(`${col.sched()}/${id}`, { a: x.a, b: x.b });
+  if (raw && (stale || JSON.stringify([raw.a, raw.b]) !== JSON.stringify([x.a, x.b]))) await db().update(`${col.sched()}/${id}`, { a: x.a, b: x.b, ...(stale ? { res: null } : {}) });
 }
 export async function startSched(sid: string, courtIn?: number | string) {
   const S = get(), x = S.sched.find((s) => s.id === sid);

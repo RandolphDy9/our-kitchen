@@ -58,13 +58,13 @@ test("club sheet: broken playoff cells are repaired into a working bracket", () 
   assert.equal(new Set(slot18).size, slot18.length, "added semifinals take free courts");
 });
 
-test("games already played keep their teams", () => {
+test("semifinals are corrected even after a wrong result was recorded", () => {
   const d = { id: "d", cat: "mens" as const, level: "Advanced", pools: ["A", "B"] };
   const g = (key: string, a: object, b: object, res: object | null = null) => ({ id: "d" + key, div: "d", stage: "sf" as const, key, slot: 1, time: "", end: "", court: 1, a, b, label: key, res, live: null });
   const sched = [g("q1", { seed: 1 }, { seed: 8 }), g("q2", { seed: 2 }, { seed: 7 }), g("q3", { seed: 3 }, { seed: 6 }), g("q4", { seed: 4 }, { seed: 5 }),
     g("s1", { pool: "A", rank: 1 }, { pool: "B", rank: 2 }, { w: "a" }), g("s2", { pool: "B", rank: 1 }, { pool: "A", rank: 2 })];
   const r = repairPlayoffs([d], sched);
-  assert.deepEqual([r.sched[4].a, r.sched[5].a], [{ pool: "A", rank: 1 }, { w: "q3" }]);
+  assert.deepEqual([r.sched[4].a, r.sched[5].a], [{ w: "q1" }, { w: "q3" }]);
 });
 
 test("the demo schedule and the Qsina template import cleanly with no checks", () => {

@@ -56,4 +56,6 @@ export type Sched = {
   res: Res | null; live: LiveRef | null;
   /** Added by repairPlayoffs and not stored yet: saved the first time the game starts or gets a result. */
   added?: boolean;
+  /** A result recorded for teams that don't match this game any more (see dropStale). Not counted; replay it. */
+  stale?: Res;
 };

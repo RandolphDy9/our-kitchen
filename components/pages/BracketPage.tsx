@@ -163,8 +163,10 @@ function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel:
     {canUndo(br, id) ? <div><button className="btn sm" onClick={() => (br.virtual ? undoSched(sid!) : bkUndo(id))}>Undo result</button></div> : <p className="small muted">The next round has started, so this result is locked.</p>}
   </>;
   else {
+    const stale = br.virtual && S.sched.find((x) => x.id === sid)?.stale;
     const free = freeCourts(S), cv = court || String(free.includes(m.court!) ? m.court : free[0] || "");
     body = <>
+      {stale ? <p className="small muted">This game was scored for teams that didn&apos;t win their way here, so that score no longer counts. Play it again with the teams shown.</p> : null}
       {m.live ? <p><span className="pill dark">On Court {m.live.court} now</span></p> : <>
         <div className="row">
           <div className="field" style={{ flex: "0 1 140px" }}><label htmlFor="bk-court">Court</label>

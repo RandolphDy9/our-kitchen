@@ -169,6 +169,7 @@ function Queue() {
   return <>{q.map((p) => <span className="chip on" key={p.id}>{p.name} <span className="muted num">· {gp[p.id] || 0}</span></span>)}</>;
 }
 
+const STALE_NOTE = "This game was scored for teams that didn’t win their way here, so that score no longer counts. Play it again with the teams shown.";
 function SRow({ x }: { x: Sched }) {
   const S = useApp();
   const { d, A, B } = schedSides(S, x);
@@ -194,6 +195,7 @@ function SRow({ x }: { x: Sched }) {
       <div className="sbody">
         <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
+        {admin && x.stale ? <p className="small muted">{STALE_NOTE}</p> : null}
         {admin && S.sScoring === x.id && A && B ? (
           <div className="sform">
             <ScoreEntry id={`ss-${x.id}-`} nameA={teamName(S, A)} nameB={teamName(S, B)} autoFocus onSave={win} onCancel={() => set({ sScoring: null })} />

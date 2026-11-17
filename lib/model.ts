@@ -340,6 +340,26 @@ export function divBrackets(S: S): Bracket[] {
     return { id: "div:" + d.id, virtual: true, div: d, name: divName(d), size, plan, teams: d.teams.map((t) => t.players), pools: d.teams.map((t) => t.pool), res, live: lv, createdAt: "~" } as Bracket;
   }).filter((b): b is Bracket => !!b);
 }
+/** Playoff results only count for the teams that earned the spot. A result recorded when the game had other
+    teams in it (the sheet named the wrong teams, or the bracket was repaired afterwards) is set aside as `stale`
+    so eliminated teams don't move on; the admin replays the game. Earlier rounds go first since later ones
+    depend on them. Returns the cleaned schedule and the ids of the matches behind stale results. */
+export function dropStale(S: S): { sched: Sched[]; voided: Set<string> } {
+  const voided = new Set<string>();
+  if (!S.loaded.matches) return { sched: S.sched, voided };
+  const byId = new Map(S.matchesRaw.map((m) => [m.id, m]));
+  const same = (p: string[], q?: string[]) => !!q && p.length === q.length && p.every((id) => q.includes(id));
+  let sched = S.sched;
+  for (const x of S.sched.filter((s) => s.stage !== "pool" && s.res?.match).sort((a, b) => a.slot - b.slot)) {
+    const m = byId.get(x.res!.match!);
+    if (!m) continue;
+    const { A, B } = schedSides({ ...S, sched }, x);
+    if (A && B && same(A.players, m.teamA) && same(B.players, m.teamB)) continue;
+    voided.add(m.id);
+    sched = sched.map((s) => (s.id === x.id ? { ...s, res: null, stale: s.res! } : s));
+  }
+  return { sched, voided };
+}
 export function schedLocked(S: S, x: Sched) {
   const later = x.stage === "pool"
     ? S.sched.filter((s) => s.div === x.div && s.stage !== "pool" && (s.res || s.live))

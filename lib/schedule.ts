@@ -342,16 +342,15 @@ const sameRef = (x: SRef, y: SRef) => JSON.stringify(x) === JSON.stringify(y);
 /** Club sheets often get the playoff cells slightly wrong: semifinals that name pool places after quarterfinals,
     semifinals that name quarterfinal winners when there are no quarterfinals, or no semifinals at all between the
     quarterfinals and the final. A bracket can only work one way, so fix these instead of showing teams that never
-    earned their spot. Games already started or scored are left as played. Added semifinals are flagged `added`
+    earned their spot. (A result already recorded for the wrong teams is then set aside by dropStale.) Added semifinals are flagged `added`
     (the stored schedule doesn't have them yet) and take a free court in a time slot between the rounds. */
 export function repairPlayoffs<G extends RGame>(divs: { id: string; cat: Cat | null; level: string; pools: string[] }[], sched: G[]): { sched: G[]; notes: string[] } {
   const out = [...sched], notes: string[] = [];
   const slotTimes = new Map<number, { time: string; end: string }>();
   for (const x of sched) if (!slotTimes.has(x.slot)) slotTimes.set(x.slot, { time: x.time, end: x.end });
   const maxCourt = Math.max(0, ...sched.map((x) => x.court));
-  const open = (x: G) => !x.res && !x.live;
   const setRefs = (x: G, a: SRef, b: SRef) => {
-    if (!open(x) || (sameRef(x.a, a) && sameRef(x.b, b))) return false;
+    if (sameRef(x.a, a) && sameRef(x.b, b)) return false;
     out[out.indexOf(x)] = { ...x, a, b };
     return true;
   };

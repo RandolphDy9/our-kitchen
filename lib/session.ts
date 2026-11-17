@@ -3,7 +3,7 @@ import { loadBackend, backend } from "./backend";
 import { ownerEmail } from "./backend/types";
 import { localOwnerEmail } from "./backend/local";
 import { get, initialEventState, ls, set, type AppState } from "./store";
-import { clubEvents, clubOf, normBr, normDiv, paths, todayISO } from "./model";
+import { clubEvents, clubOf, dropStale, normBr, normDiv, paths, todayISO } from "./model";
 import { repairPlayoffs } from "./schedule";
 import type { Checkin, Club, Div, Member, Player, Sched } from "./types";
 
@@ -158,7 +158,14 @@ export function selectEvent(id: string | null) {
       if (key === "brackets") patch.brackets = docs.map(normBr);
       if (key === "divs") patch.divs = docs.map(normDiv).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       if (key === "sched") patch.schedRaw = docs;
-      if (key === "sched" || key === "divs") patch.sched = repairPlayoffs<Sched>(patch.divs || S.divs as Div[], patch.schedRaw || S.schedRaw).sched;
+      if (key === "matches") patch.matchesRaw = docs;
+      if (key === "sched" || key === "divs" || key === "matches") {
+        const T = { ...S, ...patch } as AppState;
+        T.sched = repairPlayoffs<Sched>(T.divs as Div[], T.schedRaw).sched;
+        const { sched, voided } = dropStale(T);
+        patch.sched = sched;
+        patch.matches = voided.size ? T.matchesRaw.map((m) => (voided.has(m.id) ? { ...m, status: "void" } : m)) : T.matchesRaw;
+      }
       if (key === "photos") queueMicrotask(refreshPhotoUrls);
       if (key === "roster" || key === "checkins") {
         patch.players = mergePlayers(key === "roster" ? (docs as Player[]) : S.roster, key === "checkins" ? (docs as Checkin[]) : S.checkins);
