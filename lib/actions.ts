@@ -6,6 +6,7 @@ import {
   CATS, LEVELS, bMatch, canUndo, clubOf, photoSrc, checkinOpen, checkinOpensAt, curBracket, ev, fmtClock, live, lvlKey, me, pById, pName, paths, schedLocked, schedSides, uid,
 } from "./model";
 import { nameKey, type Parsed } from "./schedule";
+import { scoreProblem } from "./score";
 import { selectEvent } from "./session";
 import type { Bracket, Cat, Level, Match, Player } from "./types";
 
@@ -126,11 +127,14 @@ export async function moveIn(id: string, code: string): Promise<boolean> {
 }
 
 /* ---------- courts + results ---------- */
+function scoreOk(w: "a" | "b", sa: number | null, sb: number | null) {
+  const p = scoreProblem(sa, sb);
+  if (p) { toast(p); return false; }
+  if (sa != null && sb != null && (w === "a") !== (sa > sb)) { toast("That score says the other team won. Check the numbers."); return false; }
+  return true;
+}
 export async function saveResult(id: string, w: "A" | "B", sa: number | null, sb: number | null) {
-  if (sa != null && sb != null && ((w === "A" && sa < sb) || (w === "B" && sb < sa))) {
-    toast("That score says the other team won. Check the numbers.");
-    return false;
-  }
+  if (!scoreOk(w === "A" ? "a" : "b", sa, sb)) return false;
   const pm = get().matches.find((x) => x.id === id);
   if (pm?.sched) {
     if (await recordSched(pm.sched.s, w === "A" ? "a" : "b", sa, sb)) { set({ scoring: null }); toast("Result saved. Court is open."); return true; }
@@ -204,7 +208,7 @@ export async function recordPlayoff(brId: string, id: string, w: "a" | "b", sa: 
   if (!br) return false;
   const m = bMatch(br, id);
   if (m.a == null || m.b == null || m.res) return false;
-  if (sa != null && sb != null && ((w === "a" && sa < sb) || (w === "b" && sb < sa))) { toast("That score says the other team won. Check the numbers."); return false; }
+  if (!scoreOk(w, sa, sb)) return false;
   const t = now(), W = w === "a" ? "A" : "B";
   let mid = m.live?.match;
   try {
@@ -270,7 +274,7 @@ export async function recordSched(sid: string, w: "a" | "b", sa: number | null, 
   if (!x || x.res) return false;
   const { d, A, B } = schedSides(S, x);
   if (!d || !A || !B) { toast("Both teams aren't decided yet."); return false; }
-  if (sa != null && sb != null && ((w === "a" && sa < sb) || (w === "b" && sb < sa))) { toast("That score says the other team won. Check the numbers."); return false; }
+  if (!scoreOk(w, sa, sb)) return false;
   const t = now(), W = w === "a" ? "A" : "B";
   let mid = x.live?.match;
   try {

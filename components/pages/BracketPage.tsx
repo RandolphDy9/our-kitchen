@@ -7,7 +7,8 @@ import {
 } from "@/lib/model";
 import { bkDelete, bkSendCourt, bkStart, bkUndo, recordPlayoff, recordSched, startSched, undoSched } from "@/lib/actions";
 import type { Bracket, Cat, Level, Ref } from "@/lib/types";
-import { Av, Icon, TrophyArt, numOrNull } from "../ui";
+import { Av, Icon, TrophyArt } from "../ui";
+import { ScoreEntry } from "../ScoreEntry";
 import { Select } from "../Select";
 
 export function Road() {
@@ -139,8 +140,8 @@ function BkBlock({ br, sel, onSel }: { br: Bracket; sel: string | null; onSel: (
 function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel: (s: string | null) => void }) {
   const S = useApp();
   const [delAsk, setDelAsk] = useState(false);
-  const [a, setA] = useState(""), [b, setB] = useState(""), [court, setCourt] = useState("");
-  useEffect(() => { setA(""); setB(""); setCourt(""); }, [sel]);
+  const [court, setCourt] = useState("");
+  useEffect(() => { setCourt(""); }, [sel]);
   if (!sel || !pmOf(br, sel)) return (
     <section className="card"><p className="small muted">Tap any match in the bracket to send it to a court or record the result.</p>
       {br.virtual ? null : <div className="row">{delAsk
@@ -151,8 +152,8 @@ function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel:
   const id = sel, m = bMatch(br, id);
   const nm = (side: "a" | "b") => (m[side] != null ? tName(S, br, m[side]) : refLabel(br, side === "a" ? m.ra : m.rb));
   const sid = pmOf(br, id)?.sid;
-  const win = async (w: "a" | "b") => {
-    const ok = br.virtual ? await recordSched(sid!, w, numOrNull(a), numOrNull(b)) : await recordPlayoff(br.id, id, w, numOrNull(a), numOrNull(b));
+  const win = async (w: "a" | "b", sa: number | null, sb: number | null) => {
+    const ok = br.virtual ? await recordSched(sid!, w, sa, sb) : await recordPlayoff(br.id, id, w, sa, sb);
     if (ok) { (document.activeElement as HTMLElement | null)?.blur(); toast("Result saved. The winner moves on."); }
   };
   let body;
@@ -172,10 +173,7 @@ function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel:
         </div>
         {free.length ? null : <p className="small muted">Every court is busy right now.</p>}
       </>}
-      <div className="score-row"><label htmlFor="bkA">{nm("a")}</label><input id="bkA" type="number" min={0} max={99} inputMode="numeric" placeholder="11" value={a} onChange={(e) => setA(e.target.value)} /></div>
-      <div className="score-row"><label htmlFor="bkB">{nm("b")}</label><input id="bkB" type="number" min={0} max={99} inputMode="numeric" placeholder="7" value={b} onChange={(e) => setB(e.target.value)} /></div>
-      <p className="small muted">Enter the score, or just tap who won. The winner moves on automatically.</p>
-      <div className="row"><button className="btn sm dark" onClick={() => win("a")}>{nm("a")} won</button><button className="btn sm dark" onClick={() => win("b")}>{nm("b")} won</button></div>
+      <ScoreEntry key={id} id="bk-" nameA={nm("a")} nameB={nm("b")} onSave={win} hint="Enter the score, or just tap who won. The winner moves on automatically." />
     </>;
   }
   return (

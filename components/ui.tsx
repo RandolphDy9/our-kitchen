@@ -138,5 +138,3 @@ export const TrophyArt = () => (
   <svg viewBox="0 0 64 80" aria-hidden="true"><circle cx="32" cy="12" r="9" fill="#f6b90a" stroke="#111" strokeWidth="2.5" /><g fill="#111"><circle cx="29" cy="9" r="1.6" /><circle cx="35" cy="10" r="1.6" /><circle cx="31" cy="15" r="1.6" /></g><path d="M16 22h32v14a16 16 0 0 1-32 0z" fill="#f6b90a" stroke="#111" strokeWidth="3" /><path d="M16 26H7v4a10 10 0 0 0 11 10M48 26h9v4a10 10 0 0 1-11 10" fill="none" stroke="#111" strokeWidth="3" /><path d="M28 51h8v11h-8z" fill="#111" /><rect x="18" y="62" width="28" height="7" fill="#f6b90a" stroke="#111" strokeWidth="3" /><rect x="13" y="69" width="38" height="9" fill="#111" /></svg>
 );
 
-/** Numeric score input value → number | null */
-export const numOrNull = (v: string) => (v === "" ? null : +v);

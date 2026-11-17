@@ -8,7 +8,8 @@ import {
 import { recordSched, saveResult, showMoveCode, startSched, testAlert, undoSched } from "@/lib/actions";
 import { alertPrefs, applyWake, chime, notifySupported, primeAudio, requestNotify, wakeSupported } from "@/lib/alerts";
 import type { Match, Sched } from "@/lib/types";
-import { ArtCourt, ArtPaddle, Av, CatOnly, Icon, numOrNull } from "../ui";
+import { ArtCourt, ArtPaddle, Av, CatOnly, Icon } from "../ui";
+import { ScoreEntry } from "../ScoreEntry";
 import { Select } from "../Select";
 import { useTick } from "../widgets";
 
@@ -107,24 +108,12 @@ function AlertsCard() {
 
 function ScoreForm({ m }: { m: Match }) {
   const S = useApp();
-  const [a, setA] = useState(""), [b, setB] = useState("");
   const nA = m.teamA.map((id) => first(S, id)).join(" & "), nB = m.teamB.map((id) => first(S, id)).join(" & ");
-  const win = (w: "A" | "B") => saveResult(m.id, w, numOrNull(a), numOrNull(b));
   return (
-    <form className="score-form" onSubmit={(e) => {
-      e.preventDefault();
-      if (a !== "" && b !== "" && a !== b) win(+a > +b ? "A" : "B");
-      else toast("Enter two different scores, or tap who won.");
-    }}>
-      <div className="score-row"><label htmlFor="sA">{nA}</label><input id="sA" type="number" min={0} max={99} inputMode="numeric" placeholder="11" autoFocus value={a} onChange={(e) => setA(e.target.value)} /></div>
-      <div className="score-row"><label htmlFor="sB">{nB}</label><input id="sB" type="number" min={0} max={99} inputMode="numeric" placeholder="7" value={b} onChange={(e) => setB(e.target.value)} /></div>
-      <p className="small muted">Enter the score, or just tap who won.</p>
-      <div className="row">
-        <button className="btn sm dark" type="button" onClick={() => win("A")}>{nA} won</button>
-        <button className="btn sm dark" type="button" onClick={() => win("B")}>{nB} won</button>
-        <button className="btn sm ghost" type="button" onClick={() => set({ scoring: null })}>Cancel</button>
-      </div>
-    </form>
+    <div className="score-form">
+      <ScoreEntry id={`s-${m.id}-`} nameA={nA} nameB={nB} autoFocus onCancel={() => set({ scoring: null })}
+        onSave={(w, sa, sb) => saveResult(m.id, w === "a" ? "A" : "B", sa, sb)} />
+    </div>
   );
 }
 
@@ -182,7 +171,6 @@ function Queue() {
 
 function SRow({ x }: { x: Sched }) {
   const S = useApp();
-  const [a, setA] = useState(""), [b, setB] = useState("");
   const { d, A, B } = schedSides(S, x);
   if (!d) return null;
   const admin = isAdminView(S), mine = isMineSched(S, x), won = x.res?.w, cn = ev(S)?.courtNames?.[x.court];
@@ -193,8 +181,8 @@ function SRow({ x }: { x: Sched }) {
     if (x.res) acts = schedLocked(S, x) ? null : <button className="btn sm ghost" onClick={() => undoSched(x.id)}>Undo</button>;
     else if (A && B) acts = <>{x.live ? null : <button className="btn sm" onClick={() => startSched(x.id)}>Start</button>}<button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Score</button></>;
   }
-  const win = async (w: "a" | "b") => {
-    if (await recordSched(x.id, w, numOrNull(a), numOrNull(b))) {
+  const win = async (w: "a" | "b", sa: number | null, sb: number | null) => {
+    if (await recordSched(x.id, w, sa, sb)) {
       (document.activeElement as HTMLElement | null)?.blur();
       set({ sScoring: null });
       toast("Result saved");
@@ -208,13 +196,7 @@ function SRow({ x }: { x: Sched }) {
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
         {admin && S.sScoring === x.id && A && B ? (
           <div className="sform">
-            <div className="score-row"><label htmlFor="ssA">{teamName(S, A)}</label><input id="ssA" type="number" min={0} max={99} inputMode="numeric" placeholder="11" autoFocus value={a} onChange={(e) => setA(e.target.value)} /></div>
-            <div className="score-row"><label htmlFor="ssB">{teamName(S, B)}</label><input id="ssB" type="number" min={0} max={99} inputMode="numeric" placeholder="7" value={b} onChange={(e) => setB(e.target.value)} /></div>
-            <div className="row">
-              <button className="btn sm dark" onClick={() => win("a")}>{teamName(S, A)} won</button>
-              <button className="btn sm dark" onClick={() => win("b")}>{teamName(S, B)} won</button>
-              <button className="btn sm ghost" onClick={() => set({ sScoring: null })}>Cancel</button>
-            </div>
+            <ScoreEntry id={`ss-${x.id}-`} nameA={teamName(S, A)} nameB={teamName(S, B)} autoFocus onSave={win} onCancel={() => set({ sScoring: null })} />
           </div>
         ) : null}
       </div>
