@@ -179,7 +179,7 @@ function SRow({ x }: { x: Sched }) {
   let acts = null;
   if (admin) {
     if (x.res) acts = schedLocked(S, x) ? null : <button className="btn sm ghost" onClick={() => undoSched(x.id)}>Undo</button>;
-    else if (A && B) acts = <>{x.live ? null : <button className="btn sm" onClick={() => startSched(x.id)}>Start</button>}<button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Score</button></>;
+    else if (A && B && S.sScoring !== x.id) acts = <>{x.live ? null : <button className="btn sm" onClick={() => startSched(x.id)}>Start</button>}<button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Score</button></>;
   }
   const win = async (w: "a" | "b", sa: number | null, sb: number | null) => {
     if (await recordSched(x.id, w, sa, sb)) {
@@ -200,7 +200,7 @@ function SRow({ x }: { x: Sched }) {
           </div>
         ) : null}
       </div>
-      <div className="sact">{status}{acts}</div>
+      {status || acts ? <div className="sact">{status}{acts}</div> : null}
     </div>
   );
 }
