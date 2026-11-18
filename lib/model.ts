@@ -78,7 +78,6 @@ export const todayISO = () => new Date().toLocaleDateString("en-CA");
 export const ev = (S: S): EventDoc | null => S.events.find((e) => e.id === S.eventId) || null;
 export const pById = (S: S, id?: string | null) => S.players.find((p) => p.id === id);
 export const pName = (S: S, id?: string | null) => pById(S, id)?.name || "Removed player";
-export const first = (S: S, id?: string | null) => pName(S, id).split(" ")[0];
 export const anyP = (S: S, id: string): Pick<Player, "id" | "name"> => pById(S, id) || { id, name: "?" };
 export function gamesPlayed(S: S) {
   const g: Record<string, number> = {};
@@ -193,7 +192,7 @@ export function bMatch(br: Bracket, id: string): BM {
   const p = pmOf(br, id)!;
   return { ...p, ra: p.a, rb: p.b, a: bSide(br, p.a), b: bSide(br, p.b), res: br.res[id] || null, live: br.live[id] || null } as BM;
 }
-export const tName = (S: S, br: Bracket, i: number | null) => (i == null ? "" : br.teams[i].map((id) => first(S, id)).join(" & "));
+export const tName = (S: S, br: Bracket, i: number | null) => (i == null ? "" : br.teams[i].map((id) => pName(S, id)).join(" & "));
 export const refLabel = (br: Bracket, ref: Ref) => (ref.ph ? ref.ph : `${ref.w ? "Winner" : "Loser"} of ${pmOf(br, (ref.w || ref.l)!)?.short || "?"}`);
 export function podium(br: Bracket) {
   if (!pmOf(br, "f")) return null;
@@ -237,7 +236,7 @@ export const lvlKey = (l?: string) => (/novice|low/i.test(l || "") ? "low" : "hi
 export const divById = (S: S, id?: string) => S.divs.find((d) => d.id === id);
 export const divName = (d: Pick<Div, "cat" | "level">) => `${CAT_SHORT[d.cat] || ""} · ${d.level}`;
 export const teamById = (d: Div | undefined, id?: string) => d?.teams.find((t) => t.id === id) || null;
-export const teamName = (S: S, t: Team | null) => (t ? t.players.map((id) => first(S, id)).join(" & ") : "");
+export const teamName = (S: S, t: Team | null) => (t ? t.players.map((id) => pName(S, id)).join(" & ") : "");
 export const keyLabel = (k: string) => (k === "f" ? "Gold" : k === "b" ? "Bronze" : k[0] === "q" ? "QF" + k.slice(1) : "SF" + k.slice(1));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normDiv(d: any): Div {

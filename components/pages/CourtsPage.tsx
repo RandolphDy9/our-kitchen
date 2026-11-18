@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useApp, set, ls, toast, type CView } from "@/lib/store";
 import {
-  CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, first, fmtTime, gamesPlayed, isAdminView, isMineSched,
+  CAT_SHORT, LEVELS, anyP, busy, divById, divName, ev, fmtTime, gamesPlayed, isAdminView, isMineSched,
   live, me, pName, poolTable, qualCount, seedInfo, rLabel, refText, scTxt, schedLocked, schedSides, standings, teamName, todayISO, wonBy,
 } from "@/lib/model";
 import { recordSched, saveResult, showMoveCode, startSched, testAlert, undoSched } from "@/lib/actions";
@@ -108,7 +108,7 @@ function AlertsCard() {
 
 function ScoreForm({ m }: { m: Match }) {
   const S = useApp();
-  const nA = m.teamA.map((id) => first(S, id)).join(" & "), nB = m.teamB.map((id) => first(S, id)).join(" & ");
+  const nA = m.teamA.map((id) => pName(S, id)).join(" & "), nB = m.teamB.map((id) => pName(S, id)).join(" & ");
   return (
     <div className="score-form">
       <ScoreEntry id={`s-${m.id}-`} nameA={nA} nameB={nB} autoFocus onCancel={() => set({ scoring: null })}
@@ -135,8 +135,8 @@ function Board() {
           <div className="court-body"><span className="ibox"><Icon n="paddle" /></span>
             <div style={{ minWidth: 0 }}>
               <div className="lab">{rLabel(S, m)}{m.sched ? "" : ` · ${LEVELS[m.level]} level`}</div>
-              <div className="tA">{m.teamA.map((id) => first(S, id)).join(" & ")}</div>
-              <div className="tB"><em>VS</em>{m.teamB.map((id) => first(S, id)).join(" & ")}</div>
+              <div className="tA">{m.teamA.map((id) => pName(S, id)).join(" & ")}</div>
+              <div className="tB"><em>VS</em>{m.teamB.map((id) => pName(S, id)).join(" & ")}</div>
             </div>
             <span className="quad">{[...m.teamA, ...m.teamB].map((id, k) => <Av key={k} p={anyP(S, id)} />)}</span>
           </div>

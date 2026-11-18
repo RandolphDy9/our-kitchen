@@ -96,7 +96,7 @@ export function Overlays() {
         c = { big: r.emoji, title: r.label + "!", text: `${pName(S, k.from)} just gave you ${r.emoji}` };
       } else {
         c = { big: byId[valid[0].r].emoji, title: `${valid.length} new reactions`,
-          text: <><span className="emojis">{valid.map((k) => byId[k.r].emoji).join(" ")}</span><br />from {[...new Set(valid.map((k) => pName(S, k.from).split(" ")[0]))].slice(0, 3).join(", ")}</> };
+          text: <><span className="emojis">{valid.map((k) => byId[k.r].emoji).join(" ")}</span><br />from {[...new Set(valid.map((k) => pName(S, k.from)))].slice(0, 3).join(", ")}</> };
       }
     }
     if (!c) return;

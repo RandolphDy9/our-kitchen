@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useApp, set } from "@/lib/store";
 import {
-  CAT_SHORT, anyP, at, cLabel, done, dur, first, fmtClock, fmtDate, fmtTime, isAdminView, kudosTotal, live, me, pById, pName,
+  CAT_SHORT, anyP, at, cLabel, done, dur, fmtClock, fmtDate, fmtTime, isAdminView, kudosTotal, live, me, pById, pName,
   reactionsOf, standings,
 } from "@/lib/model";
 import { reopen } from "@/lib/actions";
@@ -95,12 +95,12 @@ export function ActivityFeed({ limit = 8 }: { limit?: number }) {
     items.push({ t: p.checkedInAt!, key: "c" + p.id, p, title: p.name, sub: "Checked in", right: <span className="pill">Here</span> }));
   done(S).filter((m) => m.winner && m.endedAt).forEach((m) => {
     const w = m.winner === "A" ? m.teamA : m.teamB, sa = m.scoreA, sb = m.scoreB;
-    items.push({ t: m.endedAt!, key: "m" + m.id, p: anyP(S, w[0]), title: w.map((id) => first(S, id)).join(" & "),
+    items.push({ t: m.endedAt!, key: "m" + m.id, p: anyP(S, w[0]), title: w.map((id) => pName(S, id)).join(" & "),
       sub: m.court ? `Won on Court ${m.court}` : `Won ${m.playoff?.label || "a playoff match"}`,
       right: sa != null && sb != null ? <span className="amt">{Math.max(sa, sb)}–{Math.min(sa, sb)}</span> : <span className="pill">Win</span> });
   });
   S.kudos.filter((k) => k.at && byR[k.r] && pById(S, k.from)).forEach((k) =>
-    items.push({ t: k.at!, key: "k" + k.id, p: pById(S, k.from)!, title: pName(S, k.from), sub: `Gave ${first(S, k.to)} “${byR[k.r].label}”`, right: <span className="em">{byR[k.r].emoji}</span> }));
+    items.push({ t: k.at!, key: "k" + k.id, p: pById(S, k.from)!, title: pName(S, k.from), sub: `Gave ${pName(S, k.to)} “${byR[k.r].label}”`, right: <span className="em">{byR[k.r].emoji}</span> }));
   items.sort((a, b) => b.t.localeCompare(a.t));
   if (!items.length) return <p className="small muted">Check-ins, wins and reactions show up here as they happen.</p>;
   return <>{items.slice(0, limit).map((x) => (
@@ -169,7 +169,7 @@ export function RCards() {
       <div className="rcard" key={m.id}>
         <span className="lab">{cLabel(m)} <span className="pill">{sc}</span></span>
         <span className="what">{CAT_SHORT[m.category]} winners</span>
-        <div className="names">{w.map((id) => first(S, id)).join(" & ")}</div>
+        <div className="names">{w.map((id) => pName(S, id)).join(" & ")}</div>
         <div className="foot"><span className="stack">{w.map((id) => <Av key={id} p={anyP(S, id)} />)}</span><span>{fmtClock(m.endedAt)}</span></div>
       </div>
     );
