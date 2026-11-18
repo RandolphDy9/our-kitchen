@@ -711,6 +711,14 @@ body::before{display:none}
 .sel-list li svg.i{width:18px;height:18px;stroke-width:3}
 @media (prefers-reduced-motion:no-preference){.sel-btn svg.i{transition:transform .15s cubic-bezier(.25,1,.5,1)}}
 
+/* Venue autocomplete (reuses the .sel-list dropdown) */
+.venue.open input{box-shadow:4px 4px 0 var(--ink)}
+.venue.open input:focus{box-shadow:0 0 0 3px var(--lime),4px 4px 0 var(--ink)}
+.venue .sel-list li{align-items:flex-start}
+.venue .sel-list li svg.i{margin-top:3px;stroke-width:2.5;flex:none}
+.venue .sel-list li small{display:block;font-size:.8rem;font-weight:500;color:var(--muted);margin-top:2px}
+.venue .sel-list li.venue-attr{min-height:0;padding:6px 10px 4px;font-size:.7rem;color:var(--muted);cursor:default;justify-content:flex-end}
+
 /* Delete event confirmation */
 .del-form{display:grid;gap:12px}
 .del-form .field > label b{text-transform:none;letter-spacing:0;font-size:.85rem;background:var(--card-2);padding:1px 6px;border:1px solid var(--ink)}

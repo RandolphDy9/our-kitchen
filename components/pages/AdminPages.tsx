@@ -8,6 +8,7 @@ import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
 import { addAdmin, addOwner, createClub, createEvent, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
+import { VenueInput } from "../VenueInput";
 import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
 
 export function SignInPage() {
@@ -150,7 +151,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
       ) : null}
       <form className="card" onSubmit={submit} noValidate>
         <div className="field"><label htmlFor="ce-name">Event name</label><input id="ce-name" type="text" required maxLength={80} autoFocus={!parsed} placeholder="e.g. McGregor Pickleball Tournament 2026" value={d.name} onChange={(e) => up("name", e.target.value)} /></div>
-        <div className="field"><label htmlFor="ce-venue">Venue</label><input id="ce-venue" type="text" maxLength={80} placeholder="e.g. Picktopia Scarborough" value={d.venue} onChange={(e) => up("venue", e.target.value)} /></div>
+        <div className="field"><label htmlFor="ce-venue">Venue</label><VenueInput id="ce-venue" placeholder="e.g. Picktopia Scarborough" value={d.venue} onChange={(v) => up("venue", v)} /></div>
         <div className="row">
           <div className="field"><label htmlFor="ce-date">Date</label><input id="ce-date" type="date" required autoFocus={!!parsed} value={d.date} onChange={(e) => up("date", e.target.value)} /></div>
           <div className="field" style={{ flex: "0 1 110px" }}><label htmlFor="ce-courts">Courts</label><input id="ce-courts" type="number" min={1} max={40} inputMode="numeric" value={Number.isNaN(d.courts) ? "" : d.courts} onChange={(e) => up("courts", parseInt(e.target.value, 10))} /></div>
