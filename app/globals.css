@@ -721,6 +721,9 @@ body::before{display:none}
 .pc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:4px}
 .pc-games{font-size:.82rem;font-weight:600;color:var(--muted)}
 .pc-tags{grid-area:tags;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+/* Every level reads the same here (black); the bars still tell Novice, Intermediate and Advanced apart. */
+.pc-tags .chip.lvl{background:var(--ink);color:var(--lime);border-color:var(--ink)}
+.pc-tags .chip.lvl .lv-bars i{opacity:.35}.pc-tags .chip.lvl .lv-bars i.on{opacity:1}
 .pc-go{grid-area:go;width:100%;margin-top:4px}
 .pc-more{grid-area:more;width:44px;height:44px;margin:-6px -6px 0 0;display:grid;place-items:center;border:2px solid transparent;background:none;font-size:1.5rem;font-weight:800;line-height:1;color:var(--ink);cursor:pointer}
 .pc-more:focus-visible{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px var(--lime)}
