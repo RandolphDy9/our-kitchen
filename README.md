@@ -46,19 +46,19 @@ Qsina runs any number of clubs from one site. Each club only sees and manages it
 ### Who's who
 
 ```
-Platform owner
+Platform owner              Organizer sign in (email + password)
  └─ Club
-     ├─ Club owner(s)
-     │   └─ Club admin(s)
+     ├─ Club owner(s)       Organizer sign in (email + password)
+     │   └─ Club admin(s)   Organizer code on the check-in page, or picked after checking in
      └─ Events
-         └─ Players
+         └─ Players         Scan the QR code and check in
 ```
 
 | Role | Added by | How they get in | What they can do |
 |---|---|---|---|
 | **Platform owner** | — (the account in `NEXT_PUBLIC_OWNER_EMAIL`) | **Organizer sign in** with email + password | Everything, in every club. Creates clubs and adds club owners. The only one who uploads, replaces or removes schedules (see below). |
-| **Club owner** | Platform owner | **Organizer sign in** with the email + password set up for them | Their club only: create events, edit event details, save the QR poster, enter scores, add or remove admins, rename the club. |
-| **Club admin** | A club owner (or the platform owner) | Enters the club's **organizer code** on the event's check-in page (playing or not, any time), or checks in and gets picked on the Club page. No password: access stays with that phone and browser. | Run the club's events: scores, courts, check-ins. Can't add admins. |
+| **Club owner** | Platform owner | **Organizer sign in** with the email + password set up for them | Their club only: create events, edit event details, save the QR poster, enter scores, make the organizer code, add or remove admins, rename the club. |
+| **Club admin** | Themselves, with the club's organizer code; or a club owner picks them | Enters the club's **organizer code** on the event's check-in page (playing or not, any time), or checks in and gets picked on the Club page. No password: access stays with that phone and browser. | Run the club's events: scores, courts, check-ins. Can't add admins. |
 | **Player** | — (comes from the uploaded schedule) | Scans the event's QR code and checks in. Check-in opens 1 hour before the start. | Their courts, results, reactions and photos. |
 
 An admin who clears their browser data, switches browsers, or opens the iPhone Home Screen app instead of Safari loses admin access and has to enter the organizer code again (or be picked again).
