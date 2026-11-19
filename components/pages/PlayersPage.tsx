@@ -40,7 +40,7 @@ export function PlayersPage() {
       <div className="field"><label htmlFor="pq" className="lbl">Search</label><input id="pq" type="search" placeholder="Find a player" value={f.q} onChange={(e) => pf("q", e.target.value)} /></div>
       <div style={{ display: "grid", gap: 8 }}>
         <div className="seg" role="group" aria-label="Status">
-          {[["all", "Everyone"], ["in", "Active"], ["out", "Not here"]].map(([v, l]) => <button key={v} aria-pressed={f.st === v} onClick={() => pf("st", v)}>{l}</button>)}
+          {[["all", "Everyone"], ["in", "Here"], ["out", "Not here"]].map(([v, l]) => <button key={v} aria-pressed={f.st === v} onClick={() => pf("st", v)}>{l}</button>)}
         </div>
         <div className="seg" role="group" aria-label="Men or women">
           {[["all", "All"], ["M", "Men"], ["F", "Women"]].map(([v, l]) => <button key={v} aria-pressed={f.g === v} onClick={() => pf("g", v)}>{l}</button>)}
@@ -54,27 +54,32 @@ export function PlayersPage() {
         <div>
           {demo ? <p className="small muted" style={{ marginBottom: 8 }}>Includes demo players · <button className="btn sm ghost" onClick={clearDemo}>Remove demo players</button></p> : null}
           {list.length ? <div className="list">{list.map((p) => (
-            <div className="item" key={p.id}><Av p={p} />
-              <div style={{ minWidth: 0 }}><div className="name">{p.name}</div>
-                <div className="sub">
-                  {p.checkedIn ? <span className="status live"><span className="dot live" />Active {fmtClock(p.checkedInAt)}</span> : <span className="status"><span className="dot" />Not here</span>}
-                  {p.gender ? <span className="chip on">{p.gender === "M" ? "Men" : "Women"}</span>
-                    : <span className="gset" title="Set gender"><button onClick={() => setGender(p.id, "M")} aria-label={`${p.name} is a man`}>M</button><button onClick={() => setGender(p.id, "F")} aria-label={`${p.name} is a woman`}>F</button></span>}
-                  <PlayerLevels p={p} />
-                  {b.has(p.id) ? <span className="chip open">Court {courtOf[p.id]}</span> : null}
-                  <span className="small muted num">{gp[p.id] || 0} games</span><Tally pid={p.id} />
+            <div className={`item pcard${p.checkedIn ? " in" : ""}`} key={p.id}><Av p={p} />
+              {/* Row 1: who and whether they're here. Row 2: what they play. Row 3: the one action, full width. */}
+              <div className="pc-head">
+                <div className="name">{p.name}</div>
+                <div className="pc-meta">
+                  {p.checkedIn ? <span className="status live"><span className="dot live" />Here since {fmtClock(p.checkedInAt)}</span> : <span className="status"><span className="dot" />Not here</span>}
+                  {b.has(p.id) ? <span className="chip open">On Court {courtOf[p.id]}</span> : null}
+                  <span className="pc-games num">{gp[p.id] || 0} {(gp[p.id] || 0) === 1 ? "game" : "games"}</span><Tally pid={p.id} />
                 </div>
               </div>
-              <div className="acts">
-                {/* Checked-in players need no action on the card; undoing a check-in is rare, so it lives in ⋯. */}
-                {p.checkedIn ? null : <button className="btn sm dark" onClick={() => toggleIn(p.id)}>Check in</button>}
-                {menu === p.id ? <>
-                  {p.checkedIn ? <button className="btn sm" onClick={() => { setMenu(null); toggleIn(p.id); }}>Undo check-in</button> : null}
-                  {p.checkedIn && p.uid ? <button className="btn sm dark" onClick={() => makeCode(p.id)}>Phone code</button> : null}
-                  <button className="btn sm danger" onClick={() => { setMenu(null); delPlayer(p.id); }}>Remove</button>
-                  <button className="btn sm ghost" onClick={() => setMenu(null)}>Close</button>
-                </> : <button className="btn sm ghost" onClick={() => setMenu(p.id)} aria-label={`More for ${p.name}`}>⋯</button>}
+              <button className={`pc-more${menu === p.id ? " on" : ""}`} onClick={() => setMenu(menu === p.id ? null : p.id)}
+                aria-expanded={menu === p.id} aria-label={`More for ${p.name}`}><span aria-hidden="true">⋯</span></button>
+              <div className="pc-tags">
+                {p.gender ? <span className="chip on">{p.gender === "M" ? "Men" : "Women"}</span>
+                  : <span className="gset" title="Set gender"><button onClick={() => setGender(p.id, "M")} aria-label={`${p.name} is a man`}>M</button><button onClick={() => setGender(p.id, "F")} aria-label={`${p.name} is a woman`}>F</button></span>}
+                <PlayerLevels p={p} />
               </div>
+              {/* Checked-in players need no action on the card; undoing a check-in is rare, so it lives in ⋯. */}
+              {p.checkedIn ? null : <button className="btn sm dark pc-go" onClick={() => toggleIn(p.id)}>Check in</button>}
+              {menu === p.id ? (
+                <div className="pc-menu">
+                  {p.checkedIn ? <button className="btn sm" onClick={() => { setMenu(null); toggleIn(p.id); }}>Undo check-in</button> : null}
+                  {p.checkedIn && p.uid ? <button className="btn sm" onClick={() => { setMenu(null); makeCode(p.id); }}>Phone code</button> : null}
+                  <button className="btn sm danger" onClick={() => { setMenu(null); delPlayer(p.id); }}>Remove</button>
+                </div>
+              ) : null}
               {codes[p.id] ? (
                 <div className="move-code player-code" role="status">
                   <span>Code for {p.name}</span><b className="num">{codes[p.id]}</b>

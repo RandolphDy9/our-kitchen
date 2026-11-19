@@ -713,14 +713,34 @@ body::before{display:none}
 .sel-list li svg.i{width:18px;height:18px;stroke-width:3}
 @media (prefers-reduced-motion:no-preference){.sel-btn svg.i{transition:transform .15s cubic-bezier(.25,1,.5,1)}}
 
+/* Players tab: one card per player. Who + status, then tags, then the one action full width (like schedule cards). */
+.item.pcard{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"av head more" ". tags tags" "go go go" "menu menu menu";align-items:start;gap:8px 12px;padding:14px}
+.pcard > .av{grid-area:av;margin-top:2px}
+.pc-head{grid-area:head;min-width:0}
+.pc-head .name{font-size:1.05rem;line-height:1.25}
+.pc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:4px}
+.pc-games{font-size:.82rem;font-weight:600;color:var(--muted)}
+.pc-tags{grid-area:tags;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pc-go{grid-area:go;width:100%;margin-top:4px}
+.pc-more{grid-area:more;width:44px;height:44px;margin:-6px -6px 0 0;display:grid;place-items:center;border:2px solid transparent;background:none;font-size:1.5rem;font-weight:800;line-height:1;color:var(--ink);cursor:pointer}
+.pc-more:focus-visible{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px var(--lime)}
+.pc-more.on{background:var(--card-2);border-color:var(--ink)}
+@media (hover:hover){.pc-more:hover{background:var(--card-2)}}
+.pc-menu{grid-area:menu;display:flex;flex-wrap:wrap;gap:8px;padding-top:12px;margin-top:2px;border-top:2px solid var(--card-2)}
+.pc-menu .danger{margin-left:auto}
+@media (min-width:640px){
+  .item.pcard{grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"av head go more" ". tags tags tags" "menu menu menu menu"}
+  .pc-go{width:auto;margin-top:0;align-self:center}
+}
+
 /* Club page: organizer code for helpers */
 .admin-code .code-big{font-family:var(--f-display);font-size:2rem;font-weight:700;letter-spacing:.12em;padding:10px 14px;border:var(--b);background:var(--lime);justify-self:start}
 
 /* Player home: nudge to add photos to the event album */
-.snap{display:grid;gap:10px;border-left:6px solid var(--lime)}
+.snap{display:grid;gap:10px}
 .snap h2{margin:0}
 .snap p{margin:0}
-.snap-eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;font-weight:700}
+.snap-eyebrow{justify-self:start;background:var(--lime);border:var(--b);padding:2px 8px;text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;font-weight:700}
 .snap-thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .snap-thumbs button{aspect-ratio:1/1;padding:0;border:var(--b);border-radius:var(--r-sm);overflow:hidden;background:var(--card-2);cursor:zoom-in}
 .snap-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
