@@ -9,11 +9,11 @@ import { Select } from "../Select";
 import { Fans } from "../widgets";
 import { MoveCode } from "./CourtsPage";
 
-type PF = { q: string; g: string; lvl: string; st: string };
+type PF = { q: string; lvl: string; st: string };
 
 export function PlayersPage() {
   const S = useApp();
-  const [f, setF] = useState<PF>({ q: "", g: "all", lvl: "all", st: "all" });
+  const [f, setF] = useState<PF>({ q: "", lvl: "all", st: "all" });
   const [menu, setMenu] = useState<string | null>(null);
   // Codes made for a player whose phone lost their check-in, shown on that player's row.
   const [codes, setCodes] = useState<Record<string, string>>({});
@@ -27,7 +27,7 @@ export function PlayersPage() {
   live(S).forEach((m) => [...m.teamA, ...m.teamB].forEach((id) => (courtOf[id] = m.court)));
   // Level filter: the levels named in this event's divisions, or the old Low/High for events without a schedule.
   const lvls = S.divs.length ? eventLevels(S) : ["Low", "High"];
-  const list = S.players.filter((p) => (f.g === "all" || p.gender === f.g) && (f.lvl === "all" || playerLevels(S, p).includes(f.lvl)) &&
+  const list = S.players.filter((p) => (f.lvl === "all" || playerLevels(S, p).includes(f.lvl)) &&
     (f.st === "all" || (f.st === "in" ? p.checkedIn : !p.checkedIn)) && (!f.q || p.name.toLowerCase().includes(f.q.toLowerCase())))
     .sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0) || a.name.localeCompare(b.name));
   const demo = S.players.some((p) => p.demo);
@@ -35,15 +35,12 @@ export function PlayersPage() {
 
   return (
     <div className="view">
-      <div className="sec-head"><h2>Players</h2><span className="muted small">{i} active · {S.players.length} total</span></div>
+      <div className="sec-head"><h2>Players</h2><span className="muted small">{i} here · {S.players.length} total</span></div>
       <div className="notice">Players come from the tournament schedule. To add or change players, update the Excel file and import it again from the Event tab.</div>
       <div className="field"><label htmlFor="pq" className="lbl">Search</label><input id="pq" type="search" placeholder="Find a player" value={f.q} onChange={(e) => pf("q", e.target.value)} /></div>
       <div style={{ display: "grid", gap: 8 }}>
         <div className="seg" role="group" aria-label="Status">
           {[["all", "Everyone"], ["in", "Here"], ["out", "Not here"]].map(([v, l]) => <button key={v} aria-pressed={f.st === v} onClick={() => pf("st", v)}>{l}</button>)}
-        </div>
-        <div className="seg" role="group" aria-label="Men or women">
-          {[["all", "All"], ["M", "Men"], ["F", "Women"]].map(([v, l]) => <button key={v} aria-pressed={f.g === v} onClick={() => pf("g", v)}>{l}</button>)}
         </div>
         {/* A dropdown, not buttons: club level names ("Low Intermediate", "3.5–4.0") are too long to sit side by side on a phone. */}
         <Select aria-label="Level" value={f.lvl} onChange={(v) => pf("lvl", v)} options={[["all", "All levels"], ...lvls.map((l) => [l, l] as const)]} />
