@@ -43,16 +43,36 @@ Free-tier note: Supabase pauses a free project after 7 days without any activity
 
 Qsina runs any number of clubs from one site. Each club only sees and manages its own events.
 
-| Who | How they get in | What they can do |
-|---|---|---|
-| **Platform owner** | Signs in with `NEXT_PUBLIC_OWNER_EMAIL` | Everything, in every club. Creates clubs and names their owners (**Club → All clubs**). The only one who uploads, replaces or removes schedules (see below). |
-| **Club owner** | Signs in with the email the platform owner added | Their club: events, scores, and picking or removing admins. Can rename the club. |
-| **Club admin** | Picked from checked-in players by a club owner | Run that club's events from the phone they checked in with. |
-| **Player** | Scans the event's QR code | Check in, courts, results, reactions, photos. |
+### Who's who
 
-Adding a club owner takes two steps:
-1. In the app: **Club → All clubs → New club** (or **Add an owner** on an existing club), with their name and sign-in email.
-2. In Supabase: **Authentication → Users → Add user → Create new user**, with the same email and **Auto Confirm User** ticked. Send them the password; they use **Organizer sign in**.
+```
+Platform owner
+ └─ Club
+     ├─ Club owner(s)
+     │   └─ Club admin(s)
+     └─ Events
+         └─ Players
+```
+
+| Role | Added by | How they get in | What they can do |
+|---|---|---|---|
+| **Platform owner** | — (the account in `NEXT_PUBLIC_OWNER_EMAIL`) | **Organizer sign in** with email + password | Everything, in every club. Creates clubs and adds club owners. The only one who uploads, replaces or removes schedules (see below). |
+| **Club owner** | Platform owner | **Organizer sign in** with the email + password set up for them | Their club only: create events, edit event details, save the QR poster, enter scores, add or remove admins, rename the club. |
+| **Club admin** | A club owner (or the platform owner) | Checks in once on their phone, then gets picked on the Club page. No password: access stays with that phone and browser. | Run the club's events: scores, courts, check-ins. Can't add admins. |
+| **Player** | — (comes from the uploaded schedule) | Scans the event's QR code and checks in. Check-in opens 1 hour before the start. | Their courts, results, reactions and photos. |
+
+An admin who clears their browser data, switches browsers, or opens the iPhone Home Screen app instead of Safari loses admin access and has to be picked again.
+
+### Getting each person in
+
+- **Platform owner:** Organizer sign in.
+- **Club owner:** two steps.
+  1. In the app: **Club → All clubs → New club** (or **Add an owner** on an existing club), with their name and sign-in email.
+  2. In Supabase: **Authentication → Users → Add user → Create new user**, with the same email and **Auto Confirm User** ticked. Send them the password; they use **Organizer sign in**.
+- **Club admin:** scans the QR code and checks in, then a club owner picks them on the Club page.
+- **Player:** scans the QR code and checks in on game day.
+
+Planned: club owners upload their own schedules, an invite link replaces the Supabase step for club owners, and an admin code replaces the check-in step for admins.
 
 **Schedules are imported by the platform owner for now.** Clubs email their spreadsheet in their own format; the platform owner opens the club's event, uploads it and works through the preview's checks with the organizer. The database enforces this (`ok_sched_col` in `supabase/schema.sql`): only the platform owner can add or delete scheduled games and divisions, so only they can upload, replace or remove a schedule, or delete an event that has one. Club owners and admins still enter scores. To hand uploads to club owners later, change `public.ok_is_owner()` to `public.ok_is_event_admin(split_part(col, '/', 2))` on the two `ok_sched_col` lines, re-run the SQL, and widen `canImport` in `lib/model.ts`.
 
