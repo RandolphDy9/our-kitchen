@@ -66,8 +66,10 @@ export function PlayersPage() {
                 </div>
               </div>
               <div className="acts">
-                <button className={`btn sm ${p.checkedIn ? "soft" : "dark"}`} onClick={() => toggleIn(p.id)}>{p.checkedIn ? "Undo" : "Check in"}</button>
+                {/* Checked-in players need no action on the card; undoing a check-in is rare, so it lives in ⋯. */}
+                {p.checkedIn ? null : <button className="btn sm dark" onClick={() => toggleIn(p.id)}>Check in</button>}
                 {menu === p.id ? <>
+                  {p.checkedIn ? <button className="btn sm" onClick={() => { setMenu(null); toggleIn(p.id); }}>Undo check-in</button> : null}
                   {p.checkedIn && p.uid ? <button className="btn sm dark" onClick={() => makeCode(p.id)}>Phone code</button> : null}
                   <button className="btn sm danger" onClick={() => { setMenu(null); delPlayer(p.id); }}>Remove</button>
                   <button className="btn sm ghost" onClick={() => setMenu(null)}>Close</button>
