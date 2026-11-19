@@ -133,15 +133,34 @@ function scoreOk(w: "a" | "b", sa: number | null, sb: number | null) {
   if (sa != null && sb != null && (w === "a") !== (sa > sb)) { toast("That score says the other team won. Check the numbers."); return false; }
   return true;
 }
+/** A game on court whose schedule or bracket spot already has a result (or no longer exists) can't be scored again.
+    Close it so the court frees up; the result already recorded stands. */
+async function closeOrphan(id: string, why: string) {
+  try {
+    await db().update(`${col.matches()}/${id}`, { status: "void" });
+    set({ scoring: null });
+    toast(why + " Court is open.");
+    return true;
+  } catch {
+    toast("Couldn't free the court. Only admins can.");
+    return false;
+  }
+}
 export async function saveResult(id: string, w: "A" | "B", sa: number | null, sb: number | null) {
   if (!scoreOk(w === "A" ? "a" : "b", sa, sb)) return false;
-  const pm = get().matches.find((x) => x.id === id);
+  const S = get(), pm = S.matches.find((x) => x.id === id);
   if (pm?.sched) {
-    if (await recordSched(pm.sched.s, w === "A" ? "a" : "b", sa, sb)) { set({ scoring: null }); toast("Result saved. Court is open."); return true; }
+    const x = S.sched.find((s) => s.id === pm.sched!.s);
+    if (!x) return closeOrphan(id, "This game isn't in the schedule anymore.");
+    if (x.res) return closeOrphan(id, "This game already had a result, so that one stands.");
+    if (await recordSched(pm.sched.s, w === "A" ? "a" : "b", sa, sb, id)) { set({ scoring: null }); toast("Result saved. Court is open."); return true; }
     return false;
   }
   if (pm?.playoff) {
-    if (await recordPlayoff(pm.playoff.b, pm.playoff.m, w === "A" ? "a" : "b", sa, sb)) { set({ scoring: null }); toast("Result saved. The winner moves on in the bracket."); return true; }
+    const br = S.brackets.find((b) => b.id === pm.playoff!.b);
+    if (!br) return closeOrphan(id, "This playoff isn't there anymore.");
+    if (br.res[pm.playoff.m]) return closeOrphan(id, "This match already had a result, so that one stands.");
+    if (await recordPlayoff(pm.playoff.b, pm.playoff.m, w === "A" ? "a" : "b", sa, sb, id)) { set({ scoring: null }); toast("Result saved. The winner moves on in the bracket."); return true; }
     return false;
   }
   try {
@@ -193,7 +212,12 @@ export async function bkSendCourt(id: string, court: number) {
   if (!br) return;
   const m = bMatch(br, id);
   if (!court || m.a == null || m.b == null) return;
+  if (m.res) return toast("This match already has a result.");
+  if (m.live) return toast(`This match is already on Court ${m.live.court}.`);
   if (live(S).some((x) => x.court === court)) return toast(`Court ${court} is in use.`);
+  const key = br.id + "/" + id;
+  if (starting.has(key)) return;
+  starting.add(key);
   const mid = uid();
   try {
     await db().set(`${col.matches()}/${mid}`, { teamA: br.teams[m.a], teamB: br.teams[m.b], category: br.category, level: br.level, court, round: 0, status: "live", createdAt: now(), playoff: { b: br.id, m: id, label: m.short } });
@@ -201,22 +225,24 @@ export async function bkSendCourt(id: string, court: number) {
     toast(`${m.short} is on Court ${court}. The players just got an alert.`);
   } catch {
     toast("Couldn't send that match to a court.");
+  } finally {
+    starting.delete(key);
   }
 }
-export async function recordPlayoff(brId: string, id: string, w: "a" | "b", sa: number | null, sb: number | null) {
+/** Records a playoff match that's on court (`onCourt` is the live game being scored, when known). */
+export async function recordPlayoff(brId: string, id: string, w: "a" | "b", sa: number | null, sb: number | null, onCourt?: string) {
   const br = get().brackets.find((b) => b.id === brId);
   if (!br) return false;
   const m = bMatch(br, id);
-  if (m.a == null || m.b == null || m.res) return false;
+  if (m.a == null || m.b == null) return false;
+  if (m.res) { toast("This match already has a result."); return false; }
+  // Scores only come from a game that's on court, so every result matches a real game.
+  const mid = onCourt || m.live?.match;
+  if (!mid) { toast("Start this match on a court first, then record the score."); return false; }
   if (!scoreOk(w, sa, sb)) return false;
   const t = now(), W = w === "a" ? "A" : "B";
-  let mid = m.live?.match;
   try {
-    if (mid) await db().update(`${col.matches()}/${mid}`, { status: "done", winner: W, scoreA: sa, scoreB: sb, endedAt: t });
-    else {
-      mid = uid();
-      await db().set(`${col.matches()}/${mid}`, { teamA: br.teams[m.a], teamB: br.teams[m.b], category: br.category, level: br.level, court: null, round: 0, status: "done", winner: W, scoreA: sa, scoreB: sb, createdAt: t, endedAt: t, playoff: { b: br.id, m: id, label: m.short } });
-    }
+    await db().update(`${col.matches()}/${mid}`, { status: "done", winner: W, scoreA: sa, scoreB: sb, endedAt: t });
     const lv = { ...br.live };
     delete lv[id];
     await saveBr(br, { res: { ...br.res, [id]: { w, sa, sb, at: t, match: mid } }, live: lv });
@@ -262,13 +288,19 @@ async function storeFix(x: Sched) {
   const raw = get().schedRaw.find((r) => r.id === id);
   if (raw && (stale || JSON.stringify([raw.a, raw.b]) !== JSON.stringify([x.a, x.b]))) await db().update(`${col.sched()}/${id}`, { a: x.a, b: x.b, ...(stale ? { res: null } : {}) });
 }
+/* Games being started right now, so a double tap (or two admins at once) can't put the same game on court twice. */
+const starting = new Set<string>();
 export async function startSched(sid: string, courtIn?: number | string) {
   const S = get(), x = S.sched.find((s) => s.id === sid);
   if (!x) return;
+  if (x.res) return toast("This game already has a result.");
+  if (x.live) return toast(`This game is already on Court ${x.live.court}.`);
   const { d, A, B } = schedSides(S, x);
   if (!d || !A || !B) return toast("Both teams aren't decided yet.");
   const court = +(courtIn || 0) || x.court;
   if (live(S).some((m) => m.court === court)) return toast(`Court ${court} is in use. Record that game first.`);
+  if (starting.has(sid)) return;
+  starting.add(sid);
   const mid = uid();
   try {
     await storeFix(x);
@@ -277,23 +309,27 @@ export async function startSched(sid: string, courtIn?: number | string) {
     toast(`${x.label} is on Court ${court}. The players just got an alert.`);
   } catch {
     toast("Couldn't start that game. Only admins can.");
+  } finally {
+    starting.delete(sid);
   }
 }
-export async function recordSched(sid: string, w: "a" | "b", sa: number | null, sb: number | null) {
+/** Records a scheduled game that's on court (`onCourt` is the live game being scored, when known). */
+export async function recordSched(sid: string, w: "a" | "b", sa: number | null, sb: number | null, onCourt?: string) {
   const S = get(), x = S.sched.find((s) => s.id === sid);
-  if (!x || x.res) return false;
+  if (!x) { toast("This game isn't in the schedule anymore."); return false; }
+  if (x.res) { toast("This game already has a result."); return false; }
   const { d, A, B } = schedSides(S, x);
   if (!d || !A || !B) { toast("Both teams aren't decided yet."); return false; }
+  // Scores only come from a game that's on court, so every result matches a real game.
+  const mid = onCourt || x.live?.match;
+  if (!mid) { toast("Start this game on a court first, then record the score."); return false; }
   if (!scoreOk(w, sa, sb)) return false;
   const t = now(), W = w === "a" ? "A" : "B";
-  let mid = x.live?.match;
   try {
     await storeFix(x);
-    if (mid) await db().update(`${col.matches()}/${mid}`, { status: "done", winner: W, scoreA: sa, scoreB: sb, endedAt: t });
-    else {
-      mid = uid();
-      await db().set(`${col.matches()}/${mid}`, { teamA: A.players, teamB: B.players, category: d.cat, level: lvlKey(d.level), court: x.court, round: 0, status: "done", winner: W, scoreA: sa, scoreB: sb, createdAt: t, endedAt: t, sched: { s: sid, label: x.label, div: d.id } });
-    }
+    await db().update(`${col.matches()}/${mid}`, { status: "done", winner: W, scoreA: sa, scoreB: sb, endedAt: t });
+    // Any other copy of this game still on a court (e.g. started twice) is closed so its court frees up.
+    for (const m of S.matches) if (m.id !== mid && m.status === "live" && m.sched?.s === sid) await db().update(`${col.matches()}/${m.id}`, { status: "void" }).catch(() => {});
     await db().update(`${col.sched()}/${sid}`, { res: { w, sa, sb, at: t, match: mid }, live: null });
     return true;
   } catch {

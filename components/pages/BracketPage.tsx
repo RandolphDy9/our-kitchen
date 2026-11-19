@@ -167,15 +167,18 @@ function BkPanel({ br, sel, setSel }: { br: Bracket; sel: string | null; setSel:
     const free = freeCourts(S), cv = court || String(free.includes(m.court!) ? m.court : free[0] || "");
     body = <>
       {stale ? <p className="small muted">This game was scored for teams that didn&apos;t win their way here, so that score no longer counts. Play it again with the teams shown.</p> : null}
-      {m.live ? <p><span className="pill dark">On Court {m.live.court} now</span></p> : <>
+      {/* A score can only be recorded once the match is on court: Start game first, then Record score. */}
+      {m.live ? <>
+        <p><span className="pill dark">On Court {m.live.court} now</span></p>
+        <ScoreEntry key={id} id="bk-" nameA={nm("a")} nameB={nm("b")} onSave={win} hint="Enter the score, or just tap who won. The winner moves on automatically." />
+      </> : <>
         <div className="row">
           <div className="field" style={{ flex: "0 1 140px" }}><label htmlFor="bk-court">Court</label>
             <Select id="bk-court" value={cv} onChange={setCourt} options={free.map((c) => [String(c), `Court ${c}`] as const)} /></div>
-          <button className="btn sm" disabled={!free.length} onClick={() => (br.virtual ? startSched(sid!, cv) : bkSendCourt(id, +cv))}>Send to court</button>
+          <button className="btn sm" disabled={!free.length} onClick={() => (br.virtual ? startSched(sid!, cv) : bkSendCourt(id, +cv))}>Start game</button>
         </div>
-        {free.length ? null : <p className="small muted">Every court is busy right now.</p>}
+        <p className="small muted">{free.length ? "Start the match on a court, then record the score there." : "Every court is busy right now."}</p>
       </>}
-      <ScoreEntry key={id} id="bk-" nameA={nm("a")} nameB={nm("b")} onSave={win} hint="Enter the score, or just tap who won. The winner moves on automatically." />
     </>;
   }
   return (

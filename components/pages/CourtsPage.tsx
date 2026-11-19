@@ -10,6 +10,7 @@ import { alertPrefs, applyWake, chime, notifySupported, primeAudio, requestNotif
 import type { Match, Sched } from "@/lib/types";
 import { ArtCourt, ArtPaddle, Av, CatOnly, Icon } from "../ui";
 import { ScoreEntry } from "../ScoreEntry";
+import { SnapCard } from "../SnapCard";
 import { Select } from "../Select";
 import { useTick } from "../widgets";
 
@@ -141,7 +142,7 @@ function Board() {
             <span className="quad">{[...m.teamA, ...m.teamB].map((id, k) => <Av key={k} p={anyP(S, id)} />)}</span>
           </div>
           <div className="track" title={`${mins} minutes on court`}><span className="fill" style={{ width: `calc((100% - 6px) * ${frac.toFixed(3)})` }} /><span className="ticks"><i /><i /><i /><i /><i /><i /></span></div>
-          <div className="court-foot"><span className="status"><Icon n="clock" />{mins} min on court</span>{admin ? <button className="btn sm dark" onClick={() => set({ scoring: m.id })}>Record result</button> : null}</div>
+          <div className="court-foot"><span className="status"><Icon n="clock" />{mins} min on court</span>{admin ? <button className="btn sm dark" onClick={() => set({ scoring: m.id })}>Record score</button> : null}</div>
         </>}
       </article>
     );
@@ -180,7 +181,10 @@ function SRow({ x }: { x: Sched }) {
   let acts = null;
   if (admin) {
     if (x.res) acts = schedLocked(S, x) ? null : <button className="btn sm ghost" onClick={() => undoSched(x.id)}>Undo</button>;
-    else if (A && B && S.sScoring !== x.id) acts = <>{x.live ? null : <button className="btn sm" onClick={() => startSched(x.id)}>Start</button>}<button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Score</button></>;
+    // A score can only be recorded for a game that's on court: Start game first, then Record score.
+    else if (A && B && S.sScoring !== x.id) acts = x.live
+      ? <button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Record score</button>
+      : <button className="btn sm" onClick={() => startSched(x.id)}>Start game</button>;
   }
   const win = async (w: "a" | "b", sa: number | null, sb: number | null) => {
     if (await recordSched(x.id, w, sa, sb)) {
@@ -196,7 +200,7 @@ function SRow({ x }: { x: Sched }) {
         <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
         {admin && x.stale ? <p className="small muted">{STALE_NOTE}</p> : null}
-        {admin && S.sScoring === x.id && A && B ? (
+        {admin && S.sScoring === x.id && x.live && !x.res && A && B ? (
           <div className="sform">
             <ScoreEntry id={`ss-${x.id}-`} nameA={teamName(S, A)} nameB={teamName(S, B)} autoFocus onSave={win} onCancel={() => set({ sScoring: null })} />
           </div>
@@ -312,7 +316,7 @@ export function CourtsPage() {
   const sv: CView = !hasSched ? "board" : views.some(([k]) => k === S.cview) ? S.cview! : views[0][0];
   return (
     <div className="view">
-      {admin ? null : <><MyBanner /><MyGames /><AlertsCard /></>}
+      {admin ? null : <><MyBanner /><SnapCard /><MyGames /><AlertsCard /></>}
       {hasSched ? (
         <div className="seg" role="group" aria-label="Courts view">
           {views.map(([k, l]) =>
