@@ -366,7 +366,17 @@ function clearSchedTasks() {
 }
 export async function impRun(p: Parsed, opts: { updateEvent: boolean; replace: boolean }, title: string, progress: (m: string) => void) {
   const t = now(), pre = uid(4) + "-";
-  if (opts.replace && get().sched.length) await runChunks(clearSchedTasks(), "Clearing old schedule", progress);
+  if (opts.replace) {
+    // The old schedule's played games go too, so games done, Activity and Top winners start over with it.
+    // Reactions and photos stay (a mid-event fix shouldn't wipe them); Reset event clears everything.
+    const played = get().matches.filter((m) => m.sched);
+    if (get().sched.length) await runChunks(clearSchedTasks(), "Clearing old schedule", progress);
+    await runChunks(played.map((m) => () => db().remove(`${col.matches()}/${m.id}`)), "Clearing old results", progress);
+    // Players the old sheet added who aren't in the new one (e.g. a swapped player) and haven't checked in.
+    const keep = new Set(p.players.map((x) => x.key)), S0 = get();
+    const gone = S0.roster.filter((r) => r.imported && !keep.has(nameKey(r.name)) && !r.checkedIn && !S0.checkins.some((c) => c.id === r.id));
+    await runChunks(gone.map((r) => () => db().remove(`${col.roster()}/${r.id}`)), "Removing players not in the new sheet", progress);
+  }
   const S = get(), byKey: Record<string, string> = {};
   S.roster.forEach((r) => { byKey[nameKey(r.name)] = r.id; });
   const addP: (() => Promise<unknown>)[] = [];

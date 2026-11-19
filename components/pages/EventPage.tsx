@@ -248,7 +248,7 @@ function ImportCard() {
         {unk.length ? <div className="notice">We couldn&apos;t tell if these players are men or women: <b>{unk.map((x) => x.name).join(", ")}</b>. Set them in Players after importing.</div> : null}
         <ImportNotes p={p} ok={!!I.skipOk} setOk={(v) => setI({ ...I, skipOk: v })} />
         <label className="check"><input type="checkbox" checked={opts.updateEvent} onChange={(e) => setI({ ...I, opts: { ...opts, updateEvent: e.target.checked } })} /> Update event name, times and courts{I.title ? ` (“${I.title}”)` : ""}</label>
-        {has ? <label className="check"><input type="checkbox" checked={opts.replace} onChange={(e) => setI({ ...I, opts: { ...opts, replace: e.target.checked } })} /> Replace the schedule already in this event</label> : null}
+        {has ? <label className="check"><input type="checkbox" checked={opts.replace} onChange={(e) => setI({ ...I, opts: { ...opts, replace: e.target.checked } })} /> Replace the schedule already in this event, with its scores and results. Players not in the new sheet are removed unless they checked in. Reactions and photos stay.</label> : null}
         <button className="btn dark block" onClick={run} disabled={!importReady(p, !!I.skipOk)}>Import into this event</button>
         {pick}
       </>
