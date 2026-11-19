@@ -58,10 +58,10 @@ Platform owner
 |---|---|---|---|
 | **Platform owner** | — (the account in `NEXT_PUBLIC_OWNER_EMAIL`) | **Organizer sign in** with email + password | Everything, in every club. Creates clubs and adds club owners. The only one who uploads, replaces or removes schedules (see below). |
 | **Club owner** | Platform owner | **Organizer sign in** with the email + password set up for them | Their club only: create events, edit event details, save the QR poster, enter scores, add or remove admins, rename the club. |
-| **Club admin** | A club owner (or the platform owner) | Checks in once on their phone, then gets picked on the Club page. No password: access stays with that phone and browser. | Run the club's events: scores, courts, check-ins. Can't add admins. |
+| **Club admin** | A club owner (or the platform owner) | Enters the club's **organizer code** on the event's check-in page (playing or not, any time), or checks in and gets picked on the Club page. No password: access stays with that phone and browser. | Run the club's events: scores, courts, check-ins. Can't add admins. |
 | **Player** | — (comes from the uploaded schedule) | Scans the event's QR code and checks in. Check-in opens 1 hour before the start. | Their courts, results, reactions and photos. |
 
-An admin who clears their browser data, switches browsers, or opens the iPhone Home Screen app instead of Safari loses admin access and has to be picked again.
+An admin who clears their browser data, switches browsers, or opens the iPhone Home Screen app instead of Safari loses admin access and has to enter the organizer code again (or be picked again).
 
 ### Getting each person in
 
@@ -69,10 +69,14 @@ An admin who clears their browser data, switches browsers, or opens the iPhone H
 - **Club owner:** two steps.
   1. In the app: **Club → All clubs → New club** (or **Add an owner** on an existing club), with their name and sign-in email.
   2. In Supabase: **Authentication → Users → Add user → Create new user**, with the same email and **Auto Confirm User** ticked. Send them the password; they use **Organizer sign in**.
-- **Club admin:** scans the QR code and checks in, then a club owner picks them on the Club page.
+- **Club admin:** either
+  - opens the event's check-in link, taps **Helping run the event? Enter organizer code**, and enters their name and the club's code (the owner makes it on the Club page under **Organizer code** and shares it privately), or
+  - scans the QR code and checks in, then a club owner picks them on the Club page.
+
+  The code is checked by the database (`ok_claim_admin` in `supabase/schema.sql`); players can't read it, and 5 wrong tries lock that phone out for 15 minutes. **New code** replaces it and **Turn off** disables it; admins who already joined stay until removed.
 - **Player:** scans the QR code and checks in on game day.
 
-Planned: club owners upload their own schedules, an invite link replaces the Supabase step for club owners, and an admin code replaces the check-in step for admins.
+Planned: club owners upload their own schedules, and an invite link replaces the Supabase step for club owners.
 
 **Schedules are imported by the platform owner for now.** Clubs email their spreadsheet in their own format; the platform owner opens the club's event, uploads it and works through the preview's checks with the organizer. The database enforces this (`ok_sched_col` in `supabase/schema.sql`): only the platform owner can add or delete scheduled games and divisions, so only they can upload, replace or remove a schedule, or delete an event that has one. Club owners and admins still enter scores. To hand uploads to club owners later, change `public.ok_is_owner()` to `public.ok_is_event_admin(split_part(col, '/', 2))` on the two `ok_sched_col` lines, re-run the SQL, and widen `canImport` in `lib/model.ts`.
 

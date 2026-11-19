@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useApp, set } from "@/lib/store";
 import { checkinOpen, checkinOpensAt, fmtClock, fmtDate, fmtTime, me, pById } from "@/lib/model";
-import { claim, moveIn, organizerSignIn } from "@/lib/actions";
+import { claim, claimAdmin, moveIn, organizerSignIn } from "@/lib/actions";
 import type { EventDoc, Player } from "@/lib/types";
 import { Av, Icon, NameStory, PlayerLevels, SplashArt } from "../ui";
 import { InstallPrompt } from "../InstallPrompt";
@@ -33,6 +33,39 @@ function MovePanel({ p, onCancel }: { p: Player; onCancel: () => void }) {
       {err ? <div className="notice" role="alert">{err}</div> : null}
       <button className="btn dark block" type="submit" disabled={busy}>{busy ? "Moving…" : "Move my check-in here"}</button>
       <button className="btn ghost block" type="button" onClick={onCancel}>Not me</button>
+    </form>
+  );
+}
+
+/** Helpers (playing or not) enter the club's organizer code to become admins on this phone. Works any time,
+    even before check-in opens. */
+function OrganizerCode() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!open) return (
+    <button className="btn ghost" onClick={() => setOpen(true)}><Icon n="users" />Helping run the event? Enter organizer code</button>
+  );
+  const go = async (x: React.FormEvent) => {
+    x.preventDefault();
+    setBusy(true);
+    setErr(await claimAdmin(code, name));
+    setBusy(false);
+  };
+  return (
+    <form className="card" onSubmit={go} noValidate>
+      <h2>Organizer code</h2>
+      <p className="small">For people helping run the event, playing or not. Ask the club owner for the code. You don&apos;t need to check in.</p>
+      <div className="field"><label htmlFor="oc-name">Your name</label>
+        <input id="oc-name" type="text" maxLength={40} autoComplete="name" autoCapitalize="words" autoFocus value={name} onChange={(x) => setName(x.target.value)} /></div>
+      <div className="field"><label htmlFor="oc-code">Organizer code</label>
+        <input id="oc-code" type="text" maxLength={20} autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="go"
+          placeholder="e.g. MCG4-7Q4K" value={code} onChange={(x) => setCode(x.target.value.toUpperCase())} /></div>
+      {err ? <div className="notice" role="alert">{err}</div> : null}
+      <button className="btn dark block" type="submit" disabled={busy}>{busy ? "Checking…" : "Become an admin"}</button>
+      <button className="btn ghost block" type="button" onClick={() => { setOpen(false); setErr(null); }}>Cancel</button>
     </form>
   );
 }
@@ -89,6 +122,7 @@ export function CheckinPage({ e }: { e: EventDoc }) {
         <div className="pick">{pick}</div>
         <p className="small muted">Can&apos;t find your name? Ask the organizer at the front desk to add you.</p>
       </section>}
+      {S.unlocked ? null : <OrganizerCode />}
       <NameStory />
       {S.unlocked ? null : <button className="btn ghost" onClick={organizerSignIn}><Icon n="lock" />Organizer sign in</button>}
     </div>

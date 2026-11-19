@@ -46,7 +46,16 @@ export interface Backend {
   /** Opening an event's QR code or link, or typing its check-in code, "joins" it: only then can this person read it.
       Returns the event's id, or null when no event has that code. */
   join(code: string): Promise<string | null>;
+  /** The club's admin code, or null when it's off. Club owners only. */
+  adminCode(club: string): Promise<string | null>;
+  /** Sets a new admin code (the old one stops working), or turns it off with null. Club owners only. */
+  setAdminCode(club: string, code: string | null): Promise<void>;
+  /** Makes this phone an admin of the event's club with the club's admin code. No check-in needed. */
+  claimAdmin(eventId: string, code: string, name: string): Promise<ClaimResult>;
 }
+
+/** ok: now an admin · wrong code · locked after 5 wrong tries (15 min) · off: the club has no code · name missing · none: no such event */
+export type ClaimResult = "ok" | "wrong" | "locked" | "off" | "name" | "none";
 
 export const ownerEmail = () => (process.env.NEXT_PUBLIC_OWNER_EMAIL || "").trim().toLowerCase();
 export const ownerName = () => (process.env.NEXT_PUBLIC_OWNER_NAME || "").trim() || "Super admin";

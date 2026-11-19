@@ -548,6 +548,52 @@ export async function addAdmin(p: Player) {
     toast("Only the club owner can add admins.");
   }
 }
+/* Admin code: helpers (playing or not) become admins of the club by entering the club's code on the event's
+   check-in page, with no check-in. Owners make, replace or turn off the code on the Club page. */
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no I/L/O/0/1, so it reads clearly out loud
+export function newAdminCode() {
+  const r = crypto.getRandomValues(new Uint32Array(8));
+  const s = [...r].map((n) => CODE_CHARS[n % CODE_CHARS.length]).join("");
+  return s.slice(0, 4) + "-" + s.slice(4);
+}
+export async function getAdminCode() {
+  try { return await db().adminCode(club()); } catch { return null; }
+}
+export async function setAdminCode(code: string | null) {
+  try {
+    await db().setAdminCode(club(), code);
+    toast(code ? "New admin code ready. The old one no longer works." : "Admin code turned off.");
+    return true;
+  } catch {
+    toast("Couldn't change the admin code. Only club owners can.");
+    return false;
+  }
+}
+/** Returns an error message, or null once this phone is an admin. */
+export async function claimAdmin(code: string, name: string): Promise<string | null> {
+  if (!name.trim()) return "Enter your name, so the organizers know who you are.";
+  if (!code.trim()) return "Enter the organizer code.";
+  // Opened from the QR code, a new admin would land in the player preview; they came to run the event.
+  set({ fromQR: false });
+  try {
+    const r = await db().claimAdmin(E(), code, name);
+    if (r === "ok") {
+      set({ preview: false, team: false, tab: "event" });
+      toast(`Welcome, ${name.trim()}! You're an admin now.`);
+      window.scrollTo(0, 0);
+      return null;
+    }
+    set({ fromQR: true });
+    return r === "wrong" ? "That code didn't work. Check it with the organizer and try again."
+      : r === "locked" ? "Too many wrong tries on this phone. Wait 15 minutes, then try again."
+      : r === "off" ? "This club doesn't have an organizer code turned on. Ask the club owner."
+      : r === "name" ? "Enter your name, so the organizers know who you are."
+      : "Couldn't find this event. Open the check-in link again.";
+  } catch {
+    set({ fromQR: true });
+    return "Couldn't check the code. Check your connection and try again.";
+  }
+}
 export async function removeMember(id: string) {
   try {
     await db().remove(`members/${club()}/${id}`);

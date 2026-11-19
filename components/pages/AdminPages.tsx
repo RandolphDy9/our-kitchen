@@ -1,12 +1,12 @@
 "use client";
-import { useState } from "react";
-import { useApp, set, get } from "@/lib/store";
+import { useEffect, useState } from "react";
+import { useApp, set, get, toast } from "@/lib/store";
 import { canImport, clubName, clubOf, hue, initials, isClubOwner, todayISO } from "@/lib/model";
 import { switchClub } from "@/lib/session";
 import type { Member } from "@/lib/types";
 import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
-import { addAdmin, addOwner, createClub, createEvent, eventDraftProblem, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
+import { addAdmin, addOwner, createClub, createEvent, eventDraftProblem, getAdminCode, newAdminCode, organizerPasswordSignIn, setAdminCode, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
 import { VenueInput } from "../VenueInput";
 import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
@@ -212,8 +212,9 @@ export function TeamPage() {
             <div style={{ minWidth: 0 }}><div className="name" style={{ overflowWrap: "anywhere" }}>{m.name || "Unnamed admin"}</div></div>
             {owner ? removeBtn(m, m.name || "admin") : <span />}
           </div>
-        ))}</div> : <p className="small muted">No admins yet. Pick someone below.</p>}
+        ))}</div> : <p className="small muted">No admins yet. Share the organizer code, or pick a checked-in player below.</p>}
       </section>
+      {owner ? <AdminCodeCard key={"code-" + cid} /> : null}
       {owner ? <section className="card"><h2>Make someone an admin</h2>
         {S.eventId ? <>
           <div className="field"><label htmlFor="teamq">Find a player</label>
@@ -224,12 +225,59 @@ export function TeamPage() {
               <span className="small muted">{p.uid ? "Make admin" : "Not checked in"}</span>
             </button>
           )) : <p className="small muted">{S.players.length ? `No one named “${q}”.` : "This event has no players yet. Import the schedule first."}</p>}</div>
-          <p className="small muted">Admin access goes to the phone they checked in with. Ask them to scan the check-in QR code first. If they switch phones, they can use Move my check-in, or you can make them admin again.</p>
+          <p className="small muted">For checked-in players. Admin access goes to the phone they checked in with. Helpers who aren&apos;t playing can use the organizer code above instead.</p>
         </> : <p className="small muted">Open one of this club&apos;s events first. You pick admins from its players.</p>}
       </section> : null}
       {S.isOwner ? <AllClubs /> : null}
       <button className="btn ghost" style={{ justifySelf: "start" }} onClick={organizerSignOut}>Sign out</button>
     </div>
+  );
+}
+
+/** Club owners: the organizer code helpers enter on the check-in page to become admins, with no check-in. */
+function AdminCodeCard() {
+  const S = useApp(), cid = S.clubId || "";
+  const [code, setCode] = useState<string | null | undefined>(undefined);
+  const [ask, setAsk] = useState<"new" | "off" | null>(null);
+  useEffect(() => {
+    let live = true;
+    setCode(undefined);
+    getAdminCode().then((c) => live && setCode(c));
+    return () => { live = false; };
+  }, [cid]);
+  const make = async () => {
+    const c = newAdminCode();
+    if (await setAdminCode(c)) setCode(c);
+    setAsk(null);
+  };
+  const off = async () => {
+    if (await setAdminCode(null)) setCode(null);
+    setAsk(null);
+  };
+  const share = async () => {
+    const text = `Organizer code for ${clubName(S, cid)}: ${code}\nOpen the event's check-in link, tap "Helping run the event? Enter organizer code", and enter your name and this code.`;
+    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
+    if (nav.share && matchMedia("(pointer:coarse)").matches) {
+      try { await nav.share({ text }); return; } catch (err) { if ((err as DOMException).name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(code || ""); toast("Code copied"); } catch { toast(code || ""); }
+  };
+  return (
+    <section className="card admin-code"><div className="sec-head"><h2>Organizer code</h2>{code ? <span className="pill">On</span> : null}</div>
+      <p className="small muted">Helpers who aren&apos;t playing (or haven&apos;t checked in) become admins with this code. They open the event&apos;s check-in link, tap <b>Helping run the event?</b> and enter their name and the code. Share it privately, never on the poster.</p>
+      {code === undefined ? <p className="small muted">Loading…</p> : code ? <>
+        <div className="code-big num" aria-label={`Code ${code.split("").join(" ")}`}>{code}</div>
+        {ask === "new" ? <>
+          <p className="small">A new code replaces this one, so <b>{code}</b> stops working. Admins who already joined stay admins.</p>
+          <div className="row"><button className="btn sm dark" onClick={make}>Make a new code</button><button className="btn sm ghost" onClick={() => setAsk(null)}>Keep this one</button></div>
+        </> : ask === "off" ? <>
+          <p className="small">Nobody new can join with a code until you make one. Admins who already joined stay admins.</p>
+          <div className="row"><button className="btn sm danger" onClick={off}>Turn it off</button><button className="btn sm ghost" onClick={() => setAsk(null)}>Keep it on</button></div>
+        </> : (
+          <div className="row"><button className="btn sm dark" onClick={share}>Share code</button><button className="btn sm" onClick={() => setAsk("new")}>New code</button><button className="btn sm ghost" onClick={() => setAsk("off")}>Turn off</button></div>
+        )}
+      </> : <button className="btn sm dark" style={{ justifySelf: "start" }} onClick={make}>Create a code</button>}
+    </section>
   );
 }
 

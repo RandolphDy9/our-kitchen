@@ -1,5 +1,5 @@
 "use client";
-import { ownerEmail, type AuthUser, type Backend, type Data, type Doc } from "./types";
+import { ownerEmail, type AuthUser, type Backend, type ClaimResult, type Data, type Doc } from "./types";
 
 /* Demo backend: everything lives in this browser's localStorage. Other tabs on the same
    device stay in sync through BroadcastChannel, which is enough to try the admin and
@@ -10,6 +10,8 @@ type Move = { uid: string; code: string; tries: number; expires: number; byAdmin
 const KEY = "ourkitchen.localdb";
 const UKEY = "ourkitchen.localuser";
 const MOVES = "_moves";
+const CODES = "_admincodes", TRIES = "_admintries";
+const normCode = (c: string) => c.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 function read(): Store {
   try {
@@ -132,6 +134,42 @@ export function createLocalBackend(): Backend {
     async join(code) {
       const c = code.trim().toLowerCase(), events = read().events || {};
       return Object.keys(events).find((id) => String(events[id].code || id).toLowerCase() === c) || null;
+    },
+    // Admin codes mirror ok_admin_code / ok_set_admin_code / ok_claim_admin in schema.sql (try it in two tabs).
+    async adminCode(club) {
+      return (read()[CODES]?.[club]?.code as string | undefined) || null;
+    },
+    async setAdminCode(club, code) {
+      const s = read(), c = normCode(code || "");
+      s[CODES] = { ...(s[CODES] || {}) };
+      if (c.length < 6) delete s[CODES][club];
+      else s[CODES][club] = { code: (code || "").trim().toUpperCase() };
+      write(s);
+    },
+    async claimAdmin(eventId, code, name): Promise<ClaimResult> {
+      const s = read(), u = getUser(), nm = name.trim().slice(0, 40);
+      if (!u) return "none";
+      if (!nm) return "name";
+      const t = s[TRIES]?.[u.uid] as { tries: number; until: number } | undefined;
+      if (t && t.until > Date.now()) return "locked";
+      const ev = s.events?.[eventId];
+      if (!ev) return "none";
+      const club = String(ev.clubId || "main"), real = s[CODES]?.[club]?.code as string | undefined;
+      if (!real) return "off";
+      s[TRIES] = { ...(s[TRIES] || {}) };
+      if (normCode(real) !== normCode(code)) {
+        const n = (t && t.until <= Date.now() && t.until ? 0 : t?.tries || 0) + 1;
+        s[TRIES][u.uid] = n >= 5 ? { tries: 0, until: Date.now() + 15 * 60000 } : { tries: n, until: 0 };
+        write(s);
+        return "wrong";
+      }
+      delete s[TRIES][u.uid];
+      const col = "members/" + club;
+      s[col] = { ...(s[col] || {}) };
+      if (!s[col][u.uid]) s[col][u.uid] = { role: "admin", name: nm, eventId, via: "code", at: new Date().toISOString() };
+      write(s);
+      changed(col);
+      return "ok";
     },
     // Demo mode mirrors the Supabase functions, so the flow can be tried in two tabs.
     async moveCode(path) {

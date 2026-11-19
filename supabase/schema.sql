@@ -338,3 +338,91 @@ end $$;
 -- Events from before check-in codes keep working with their id as the code (already printed QR posters).
 update public.docs set data = data || jsonb_build_object('code', id), updated_at = now()
   where col = 'events' and coalesce(data ->> 'code', '') = '';
+
+-- ---------- Admin code: helpers become admins without checking in ----------
+-- A club owner sets a code and shares it privately. Anyone with the event's check-in link who enters it becomes
+-- an admin of that club on that phone (members/{clubId}/{uid}), whether they're playing or not.
+-- Both tables have row-level security and no policies on purpose: only the functions below read or write them,
+-- so players can never see a code.
+create table if not exists public.admin_codes (
+  club text primary key,
+  code text not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.admin_codes enable row level security;
+
+-- Wrong guesses per phone: 5 in a row locks that phone out for 15 minutes.
+create table if not exists public.admin_code_tries (
+  uid text primary key,
+  tries int not null default 0,
+  locked_until timestamptz
+);
+alter table public.admin_code_tries enable row level security;
+
+-- Codes compare without case, spaces or dashes ("mcg 7q4k" = "MCG-7Q4K").
+create or replace function public.ok_norm_code(c text) returns text
+  language sql immutable as $$ select upper(regexp_replace(coalesce(c, ''), '[^A-Za-z0-9]', '', 'g')) $$;
+
+-- The club's current code (null when off). Club owners only.
+create or replace function public.ok_admin_code(p_club text) returns text
+  language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.ok_is_club_owner(p_club) then
+    raise exception 'Only club owners can see the admin code' using errcode = '42501';
+  end if;
+  return (select code from public.admin_codes where club = p_club);
+end $$;
+
+-- Sets a new code (the old one stops working), or turns it off with an empty code. Club owners only.
+create or replace function public.ok_set_admin_code(p_club text, p_code text) returns void
+  language plpgsql volatile security definer set search_path = public as $$
+begin
+  if not public.ok_is_club_owner(p_club) then
+    raise exception 'Only club owners can change the admin code' using errcode = '42501';
+  end if;
+  if length(public.ok_norm_code(p_code)) < 6 then
+    delete from public.admin_codes where club = p_club;
+    return;
+  end if;
+  insert into public.admin_codes (club, code, updated_at) values (p_club, upper(trim(p_code)), now())
+    on conflict (club) do update set code = excluded.code, updated_at = now();
+end $$;
+
+-- A helper on an event's check-in page enters their name and the code. Returns
+-- 'ok' (now an admin of the event's club), 'wrong', 'locked', 'off' (club has no code), 'name' or 'none'.
+create or replace function public.ok_claim_admin(p_event text, p_code text, p_name text) returns text
+  language plpgsql volatile security definer set search_path = public as $$
+declare
+  me text := public.ok_uid();
+  nm text := left(trim(coalesce(p_name, '')), 40);
+  v_club text;
+  v_code text;
+  t public.admin_code_tries;
+  had boolean;
+begin
+  if me = '' then return 'none'; end if;
+  if nm = '' then return 'name'; end if;
+  select * into t from public.admin_code_tries where uid = me for update;
+  had := found;
+  if had and t.locked_until is not null and t.locked_until > now() then return 'locked'; end if;
+  select coalesce(nullif(data ->> 'clubId', ''), 'main') into v_club from public.docs where col = 'events' and id = p_event;
+  if v_club is null then return 'none'; end if;
+  select code into v_code from public.admin_codes where club = v_club;
+  if v_code is null then return 'off'; end if;
+  if public.ok_norm_code(v_code) <> public.ok_norm_code(p_code) then
+    if not had or (t.locked_until is not null and t.locked_until <= now()) then
+      insert into public.admin_code_tries (uid, tries, locked_until) values (me, 1, null)
+        on conflict (uid) do update set tries = 1, locked_until = null;
+    elsif t.tries + 1 >= 5 then
+      update public.admin_code_tries set tries = 0, locked_until = now() + interval '15 minutes' where uid = me;
+    else
+      update public.admin_code_tries set tries = tries + 1 where uid = me;
+    end if;
+    return 'wrong';
+  end if;
+  delete from public.admin_code_tries where uid = me;
+  insert into public.docs (col, id, data)
+    values ('members/' || v_club, me, jsonb_build_object('role', 'admin', 'name', nm, 'eventId', p_event, 'via', 'code', 'at', now()))
+    on conflict (col, id) do nothing;
+  return 'ok';
+end $$;

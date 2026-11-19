@@ -1,6 +1,6 @@
 "use client";
 import { createClient, type RealtimeChannel, type User } from "@supabase/supabase-js";
-import type { AuthUser, Backend, Data, Doc } from "./types";
+import type { AuthUser, Backend, ClaimResult, Data, Doc } from "./types";
 
 /* Supabase keeps the same document model as before: one `docs` table keyed by
    (col, id) with a jsonb `data` column (see supabase/schema.sql). A collection path like
@@ -153,6 +153,22 @@ export function createSupabaseBackend(): Backend {
       // Everything about the event is readable now.
       if (data) await Promise.all([...subs.keys()].map(load));
       return (data as string | null) || null;
+    },
+    async adminCode(club) {
+      const { data, error } = await sb.rpc("ok_admin_code", { p_club: club });
+      fail(error);
+      return (data as string | null) || null;
+    },
+    async setAdminCode(club, code) {
+      const { error } = await sb.rpc("ok_set_admin_code", { p_club: club, p_code: code || "" });
+      fail(error);
+    },
+    async claimAdmin(eventId, code, name) {
+      const { data, error } = await sb.rpc("ok_claim_admin", { p_event: eventId, p_code: code, p_name: name });
+      fail(error);
+      // The new admin row (and the club, and every admin-only list) is readable now.
+      if (data === "ok") await Promise.all([...subs.keys()].map(load));
+      return data as ClaimResult;
     },
     async moveCode(path) {
       const [col, id] = split(path);
