@@ -553,6 +553,8 @@ button.bm{cursor:pointer}
 .tbd-ph{color:var(--muted);font-style:italic;font-weight:500}
 .sact{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
 .sform{display:grid;gap:6px;margin-top:8px}
+.sgo{margin-top:10px;padding-right:4px}
+.sgo .btn{width:100%}
 .pools{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr))}
 .pool{border:var(--b);min-width:0}
 .pool-h{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--ink);color:#ffffff;font-size:.72rem}

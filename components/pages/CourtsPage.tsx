@@ -178,13 +178,14 @@ function SRow({ x }: { x: Sched }) {
   const admin = isAdminView(S), mine = isMineSched(S, x), won = x.res?.w, cn = ev(S)?.courtNames?.[x.court];
   const side = (t: typeof A, ref: Sched["a"], w: boolean) => t ? <span className={w ? "w" : ""}>{teamName(S, t)}</span> : <span className="tbd-ph">{refText(ref)}</span>;
   const status = x.res ? <span className="pill grey">{scTxt(x.res) || "Final"}</span> : x.live ? <span className="pill dark">Live</span> : null;
-  let acts = null;
+  let acts = null, go = null;
   if (admin) {
     if (x.res) acts = schedLocked(S, x) ? null : <button className="btn sm ghost" onClick={() => undoSched(x.id)}>Undo</button>;
     // A score can only be recorded for a game that's on court: Start game first, then Record score.
-    else if (A && B && S.sScoring !== x.id) acts = x.live
+    // The main action sits full width under the teams, so long names keep their room.
+    else if (A && B && S.sScoring !== x.id) go = x.live
       ? <button className="btn sm dark" onClick={() => set({ sScoring: x.id })}>Record score</button>
-      : <button className="btn sm" onClick={() => startSched(x.id)}>Start game</button>;
+      : <button className="btn sm dark" onClick={() => startSched(x.id)}>Start game</button>;
   }
   const win = async (w: "a" | "b", sa: number | null, sb: number | null) => {
     if (await recordSched(x.id, w, sa, sb)) {
@@ -200,6 +201,7 @@ function SRow({ x }: { x: Sched }) {
         <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
         {admin && x.stale ? <p className="small muted">{STALE_NOTE}</p> : null}
+        {go ? <div className="sgo">{go}</div> : null}
         {admin && S.sScoring === x.id && x.live && !x.res && A && B ? (
           <div className="sform">
             <ScoreEntry id={`ss-${x.id}-`} nameA={teamName(S, A)} nameB={teamName(S, B)} autoFocus onSave={win} onCancel={() => set({ sScoring: null })} />
