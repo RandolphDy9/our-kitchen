@@ -576,8 +576,6 @@ button.bm{cursor:pointer}
 .impstats b{font-family:var(--f-display);font-size:1.5rem;line-height:1.1}
 .impstats span{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .notice ul,.card ul{margin:6px 0 0;padding-left:18px}
-.gset{display:inline-flex;gap:4px}
-.gset button{border:2px solid var(--ink);background:var(--card);font-weight:800;font-size:.8rem;min-width:36px;min-height:36px;cursor:pointer}
 @media (max-width:420px){.iconpill .lbl{display:none}.iconpill{padding:6px 12px;min-width:44px;justify-content:center}}
 /* Keep the win dots clear of the paddle art on narrow cards. */
 @media (max-width:560px){.boost .dots,.boost .dots-label{max-width:calc(100% - 96px)}.boost-art{width:120px}}
@@ -721,6 +719,7 @@ body::before{display:none}
 .pc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:4px}
 .pc-games{font-size:.82rem;font-weight:600;color:var(--muted)}
 .pc-tags{grid-area:tags;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pc-tags:empty{display:none}
 /* Every level reads the same here (black); the bars still tell Novice, Intermediate and Advanced apart. */
 .pc-tags .chip.lvl{background:var(--ink);color:var(--lime);border-color:var(--ink)}
 .pc-tags .chip.lvl .lv-bars i{opacity:.35}.pc-tags .chip.lvl .lv-bars i.on{opacity:1}

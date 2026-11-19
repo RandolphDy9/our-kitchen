@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useApp, set } from "@/lib/store";
 import { CAT_SHORT, LEVELS, busy, eventLevels, fmtClock, gamesPlayed, kudosTotal, live, me, playerDivs, playerLevels, reactionsOf, tally, wonBy } from "@/lib/model";
-import { clearDemo, delPlayer, playerCode, setGender, toggleIn, toggleReaction } from "@/lib/actions";
+import { clearDemo, delPlayer, playerCode, toggleIn, toggleReaction } from "@/lib/actions";
 import type { Player } from "@/lib/types";
 import { Av, Icon, LevelChip, PlayerLevels, Tally } from "../ui";
 import { Select } from "../Select";
@@ -67,8 +67,6 @@ export function PlayersPage() {
               <button className={`pc-more${menu === p.id ? " on" : ""}`} onClick={() => setMenu(menu === p.id ? null : p.id)}
                 aria-expanded={menu === p.id} aria-label={`More for ${p.name}`}><span aria-hidden="true">⋯</span></button>
               <div className="pc-tags">
-                {/* Only the level shows. Gender appears only when the sheet couldn't tell, so an admin can set it. */}
-                {p.gender ? null : <span className="gset" title="Set gender"><button onClick={() => setGender(p.id, "M")} aria-label={`${p.name} is a man`}>M</button><button onClick={() => setGender(p.id, "F")} aria-label={`${p.name} is a woman`}>F</button></span>}
                 <PlayerLevels p={p} />
               </div>
               {/* Checked-in players need no action on the card; undoing a check-in is rare, so it lives in ⋯. */}

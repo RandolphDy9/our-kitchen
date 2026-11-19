@@ -245,7 +245,7 @@ function ImportCard() {
         <div className="tbl-wrap"><table><thead><tr><th>Division</th><th>Teams</th><th>Pools</th><th>Playoffs</th></tr></thead><tbody>
           {p.divs.map((d) => <tr key={d.id}><td>{divName(d)}</td><td>{d.teams.length}</td><td>{d.pools.length ? d.pools.join(", ") : "Round robin"}</td><td>{flow(d.id)}</td></tr>)}
         </tbody></table></div>
-        {unk.length ? <div className="notice">We couldn&apos;t tell if these players are men or women: <b>{unk.map((x) => x.name).join(", ")}</b>. Set them in Players after importing.</div> : null}
+        {unk.length ? <div className="notice">We couldn&apos;t tell if these players are men or women: <b>{unk.map((x) => x.name).join(", ")}</b>. Their scheduled games are fine; they just won&apos;t show under the Men or Women filter on the Players tab.</div> : null}
         <ImportNotes p={p} ok={!!I.skipOk} setOk={(v) => setI({ ...I, skipOk: v })} />
         <label className="check"><input type="checkbox" checked={opts.updateEvent} onChange={(e) => setI({ ...I, opts: { ...opts, updateEvent: e.target.checked } })} /> Update event name, times and courts{I.title ? ` (“${I.title}”)` : ""}</label>
         {has ? <label className="check"><input type="checkbox" checked={opts.replace} onChange={(e) => setI({ ...I, opts: { ...opts, replace: e.target.checked } })} /> Replace the schedule already in this event, with its scores and results. Players not in the new sheet are removed unless they checked in. Reactions and photos stay.</label> : null}
