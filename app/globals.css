@@ -786,9 +786,9 @@ body::before{display:none}
 
 /* Import preview: games the file had that won't be imported */
 .imp-skipped{display:grid;gap:8px;background:#fff1ef;border-color:var(--danger)}
-.imp-skipped ul{margin:0;padding-left:18px;max-height:180px;overflow-y:auto}
+.imp-skipped ul{margin:0;padding-left:18px}
 .imp-skipped a{color:var(--ink);font-weight:700}
 
 /* Import preview: problems in the schedule itself (not blocking) */
 .imp-checks{display:grid;gap:8px;background:var(--card);border-left:6px solid var(--orange)}
-.imp-checks ul{margin:0;padding-left:18px;max-height:220px;overflow-y:auto}
+.imp-checks ul{margin:0;padding-left:18px}
