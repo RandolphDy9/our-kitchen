@@ -711,6 +711,15 @@ body::before{display:none}
 .sel-list li svg.i{width:18px;height:18px;stroke-width:3}
 @media (prefers-reduced-motion:no-preference){.sel-btn svg.i{transition:transform .15s cubic-bezier(.25,1,.5,1)}}
 
+/* Player home: nudge to add photos to the event album */
+.snap{display:grid;gap:10px;border-left:6px solid var(--lime)}
+.snap h2{margin:0}
+.snap p{margin:0}
+.snap-eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;font-weight:700}
+.snap-thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.snap-thumbs button{aspect-ratio:1/1;padding:0;border:var(--b);border-radius:var(--r-sm);overflow:hidden;background:var(--card-2);cursor:zoom-in}
+.snap-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+
 /* Venue autocomplete (reuses the .sel-list dropdown) */
 .venue.open input{box-shadow:4px 4px 0 var(--ink)}
 .venue.open input:focus{box-shadow:0 0 0 3px var(--lime),4px 4px 0 var(--ink)}
