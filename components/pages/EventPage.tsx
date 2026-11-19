@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useApp, set, get, toast } from "@/lib/store";
 import { CAT_SHORT, MAX_REACTIONS, adminClubs, canImport, ev, checkinLink, clubEvents, eventCode, divName, done, fmtDate, fmtTime, live, reactionsOf, uid } from "@/lib/model";
-import { deleteEvent, impDelete, impRun, saveBlob, saveReactions, schedLeftovers } from "@/lib/actions";
+import { deleteEvent, eventDraftProblem, impDelete, impRun, resetEvent, saveBlob, saveReactions, schedLeftovers, updateEvent, type EventDraft } from "@/lib/actions";
+import { VenueInput } from "../VenueInput";
 import { selectEvent, switchClub } from "@/lib/session";
 import { nameKey, parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
@@ -68,13 +69,40 @@ async function saveQR(e: EventDoc, src: HTMLCanvasElement) {
   const rr = (X: number, Y: number, w: number, h: number, col: string) => { x.fillStyle = col; x.fillRect(X, Y, w, h); };
   rr(60, 60, W - 120, 420, "#f6b90a");
   x.fillStyle = "#18181d"; x.textBaseline = "top";
-  let s = 84;
-  const T = e.name.toUpperCase();
+  // The title shrinks to fit one line; long names wrap onto a second line instead of running off the poster.
+  const T = e.name.toUpperCase(), maxW = W - 240;
+  const wrap = (sz: number) => {
+    x.font = `700 ${sz}px ${osw}`;
+    const out: string[] = [];
+    let cur = "";
+    for (const w of T.split(/\s+/).filter(Boolean)) {
+      const t = cur ? cur + " " + w : w;
+      if (!cur || x.measureText(t).width <= maxW) cur = t;
+      else { out.push(cur); cur = w; }
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+  let s = 84, lines: string[] = [T];
+  for (; s >= 36; s -= 4) {
+    x.font = `700 ${s}px ${osw}`;
+    if (x.measureText(T).width <= maxW) { lines = [T]; break; }
+    if (s <= 64) { const w = wrap(s); if (w.length <= 2) { lines = w; break; } }
+  }
+  if (s < 36) { s = 36; const w = wrap(s); lines = w.length > 2 ? [w[0], w.slice(1).join(" ")] : w; }
   x.font = `700 ${s}px ${osw}`;
-  while (x.measureText(T).width > W - 260 && s > 40) { s -= 4; x.font = `700 ${s}px ${osw}`; }
-  x.fillText(T, 120, 130);
-  x.font = `500 40px ${osw}`; x.fillStyle = "#4a4a55";
-  x.fillText([e.venue, fmtDate(e.date)].filter(Boolean).join("  ·  "), 120, 130 + s + 30);
+  const lh = Math.round(s * 1.1), y0 = lines.length > 1 ? 100 : 130;
+  lines.forEach((l, i) => {
+    let t = l;
+    while (x.measureText(t).width > maxW && t.length > 1) t = t.slice(0, -2) + "…";
+    x.fillText(t, 120, y0 + i * lh);
+  });
+  const sub = [e.venue, fmtDate(e.date)].filter(Boolean).join("  ·  ");
+  let vs = 40;
+  x.font = `500 ${vs}px ${osw}`;
+  while (x.measureText(sub).width > maxW && vs > 26) { vs -= 2; x.font = `500 ${vs}px ${osw}`; }
+  x.fillStyle = "#4a4a55";
+  x.fillText(sub, 120, y0 + (lines.length - 1) * lh + s + 26);
   rr(120, 330, W - 240, 110, "#111111");
   x.fillStyle = "#f6b90a"; x.font = `700 44px ${osw}`; x.textBaseline = "middle";
   x.fillText(`${fmtTime(e.start)} – ${fmtTime(e.end)}`, 160, 385);
@@ -294,6 +322,82 @@ function RxEditor() {
   );
 }
 
+type Details = Omit<EventDraft, "next">;
+function EventDetailsCard({ e }: { e: EventDoc }) {
+  const [d, setD] = useState<Details | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const up = <K extends keyof Details>(k: K, v: Details[K]) => setD((x) => (x ? { ...x, [k]: v } : x));
+  const edit = () => { setErr(null); setD({ name: e.name, venue: e.venue || "", date: e.date, start: e.start, end: e.end, courts: e.courts }); };
+  const submit = async (x: React.FormEvent) => {
+    x.preventDefault();
+    if (!d) return;
+    const msg = eventDraftProblem(d);
+    if (msg) return setErr(msg);
+    setErr(null);
+    setBusy(true);
+    if (await updateEvent(d)) setD(null);
+    setBusy(false);
+  };
+  if (!d) return (
+    <section className="card">
+      <div className="sec-head"><h2>Event details</h2><button className="btn sm ghost" onClick={edit}>Edit</button></div>
+      <p className="small">{e.venue || "Venue TBA"} · {fmtDate(e.date)} · {fmtTime(e.start)}–{fmtTime(e.end)} · {e.courts} courts</p>
+    </section>
+  );
+  return (
+    <form className="card" onSubmit={submit} noValidate>
+      <div className="sec-head"><h2>Event details</h2></div>
+      <div className="field"><label htmlFor="ed-name">Event name</label><input id="ed-name" type="text" required maxLength={80} value={d.name} onChange={(x) => up("name", x.target.value)} /></div>
+      <div className="field"><label htmlFor="ed-venue">Venue</label><VenueInput id="ed-venue" value={d.venue} onChange={(v) => up("venue", v)} /></div>
+      <div className="row">
+        <div className="field"><label htmlFor="ed-date">Date</label><input id="ed-date" type="date" required value={d.date} onChange={(x) => up("date", x.target.value)} /></div>
+        <div className="field" style={{ flex: "0 1 110px" }}><label htmlFor="ed-courts">Courts</label><input id="ed-courts" type="number" min={1} max={40} inputMode="numeric" value={Number.isNaN(d.courts) ? "" : d.courts} onChange={(x) => up("courts", parseInt(x.target.value, 10))} /></div>
+      </div>
+      <div className="row">
+        <div className="field"><label htmlFor="ed-start">Starts</label><input id="ed-start" type="time" required value={d.start} onChange={(x) => up("start", x.target.value)} /></div>
+        <div className="field"><label htmlFor="ed-end">Ends</label><input id="ed-end" type="time" required value={d.end} onChange={(x) => up("end", x.target.value)} /></div>
+      </div>
+      <p className="small muted">The check-in QR code stays the same. Save the QR poster again to print the new details.</p>
+      {err ? <div className="notice" role="alert">{err}</div> : null}
+      <div className="row"><button className="btn dark" type="submit" disabled={busy}>{busy ? "Saving…" : "Save details"}</button><button className="btn ghost" type="button" onClick={() => setD(null)}>Cancel</button></div>
+    </form>
+  );
+}
+
+function ResetEventCard({ e }: { e: EventDoc }) {
+  const S = useApp();
+  const [ask, setAsk] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const ok = typed.trim().toLowerCase() === "reset";
+  const keep = () => { setAsk(false); setTyped(""); };
+  const go = async (x: React.FormEvent) => {
+    x.preventDefault();
+    if (!ok) return;
+    setMsg("Resetting…");
+    await resetEvent(setMsg);
+    setMsg(null);
+    keep();
+  };
+  return (
+    <section className="card"><h2>Reset event</h2>
+      {S.sched.length && !canImport(S) ? <p className="small">This event has an imported schedule, so the Qsina team resets it. Email us and we&apos;ll clear it for you.</p> : msg ? <p className="small"><b>{msg}</b></p> : ask ? (
+        <form className="del-form" onSubmit={go}>
+          <p className="small">This clears <b>{e.name}</b> for a fresh start: its {S.roster.length} players, check-ins, games, scores, playoffs, reactions and {S.photos.length} photos. The event, its <b>check-in QR code</b>, its details and its admins stay. It can&apos;t be undone.</p>
+          <div className="field"><label htmlFor="reset-confirm">To confirm, type <b>Reset</b></label>
+            <input id="reset-confirm" type="text" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="done" autoFocus
+              value={typed} onChange={(x) => setTyped(x.target.value)} /></div>
+          <div className="row"><button type="submit" className="btn sm danger" disabled={!ok}>Reset this event</button><button type="button" className="btn sm ghost" onClick={keep}>Keep it</button></div>
+        </form>
+      ) : <>
+        <p className="small muted">After a test run: clears players, check-ins, scores and photos but keeps the same QR code, so printed posters still work.</p>
+        <button className="btn sm ghost" style={{ justifySelf: "start" }} onClick={() => setAsk(true)}>Reset event…</button>
+      </>}
+    </section>
+  );
+}
+
 function DeleteEventCard({ e }: { e: EventDoc }) {
   const S = useApp();
   const [ask, setAsk] = useState(false);
@@ -341,10 +445,12 @@ export function EventPage({ e }: { e: EventDoc }) {
         <QRCard e={e} />
         <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
           <ImportCard />
+          <EventDetailsCard key={"det-" + e.id} e={e} />
           <section className="card"><div className="sec-head"><h2>Activity</h2><button className="link" onClick={() => set({ tab: "results" })}>See all</button></div><div className="feed"><ActivityFeed limit={6} /></div></section>
           <PulseCard />
           <section className="card"><div className="sec-head"><h2>Arrivals by {S.divs.length ? "division" : "category"}</h2><button className="link" onClick={() => set({ tab: "players" })}>See all</button></div><Cats /></section>
           <RxEditor key={get().eventId || ""} />
+          <ResetEventCard key={"reset-" + e.id} e={e} />
           <DeleteEventCard key={"del-" + e.id} e={e} />
         </div>
       </div>

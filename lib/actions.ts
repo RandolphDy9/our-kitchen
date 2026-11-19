@@ -408,17 +408,49 @@ export async function createEvent(d: EventDraft, parsed?: Parsed, progress: (m: 
   if (d.next === "import") toast("Event created. Now upload your schedule.");
   else toast(`“${d.name}” created`);
 }
-/** Deletes the open event and everything stored under it (the lists below are all loaded for it). */
+/** What's wrong with an event's details, or null. Shared by Create event and Edit details. */
+export function eventDraftProblem(x: Pick<EventDraft, "name" | "date" | "start" | "end" | "courts">) {
+  return !x.name.trim() ? "Give the event a name." : !x.date ? "Pick a date." : !x.start || !x.end ? "Set a start and end time."
+    : x.end <= x.start ? "The end time has to be after the start time." : !(x.courts >= 1 && x.courts <= 40) ? "Courts must be between 1 and 40." : null;
+}
+/** Saves the open event's details. Its id and check-in code stay the same, so printed QR posters keep working. */
+export async function updateEvent(d: Omit<EventDraft, "next">) {
+  try {
+    await db().update(paths.event(E()), { name: d.name.trim(), venue: d.venue.trim(), date: d.date, start: d.start, end: d.end, courts: d.courts });
+    toast("Event details saved");
+    return true;
+  } catch {
+    toast("Couldn't save the details. Only admins can.");
+    return false;
+  }
+}
+/** Removes everything stored under the open event (the lists below are all loaded for it), but not the event itself. */
+async function clearEventData(progress: (m: string) => void) {
+  const S = get();
+  const rm = (path: string, ids: { id: string }[]) => ids.map((x) => () => db().remove(`${path}/${x.id}`));
+  await runChunks(S.photos.filter((p) => p.ref).map((p) => () => db().removeFile(p.ref!).catch(() => {})), "Removing photo files", progress);
+  await runChunks([
+    ...rm(col.gallery(), S.photos), ...rm(col.kudos(), S.kudos), ...rm(col.hearts(), S.hearts), ...rm(col.comments(), S.comments),
+    ...rm(col.checkins(), S.checkins), ...rm(col.matches(), S.matches), ...rm(col.playoffs(), S.brackets.filter((b) => !b.virtual)),
+    ...rm(col.sched(), S.sched), ...rm(col.divs(), S.divs), ...rm(col.roster(), S.roster),
+  ], "Removing event data", progress);
+}
+/** Clears the open event for a fresh start (e.g. after a test run) but keeps the event, its check-in QR and its admins. */
+export async function resetEvent(progress: (m: string) => void) {
+  try {
+    await clearEventData(progress);
+    toast("Event reset. Same QR code — upload the schedule when ready.");
+    return true;
+  } catch {
+    toast("Couldn't reset everything. Try again.");
+    return false;
+  }
+}
+/** Deletes the open event and everything stored under it. */
 export async function deleteEvent(progress: (m: string) => void) {
   const S = get(), id = E(), name = ev(S)?.name || "Event";
-  const rm = (path: string, ids: { id: string }[]) => ids.map((x) => () => db().remove(`${path}/${x.id}`));
   try {
-    await runChunks(S.photos.filter((p) => p.ref).map((p) => () => db().removeFile(p.ref!).catch(() => {})), "Removing photo files", progress);
-    await runChunks([
-      ...rm(col.gallery(), S.photos), ...rm(col.kudos(), S.kudos), ...rm(col.hearts(), S.hearts), ...rm(col.comments(), S.comments),
-      ...rm(col.checkins(), S.checkins), ...rm(col.matches(), S.matches), ...rm(col.playoffs(), S.brackets.filter((b) => !b.virtual)),
-      ...rm(col.sched(), S.sched), ...rm(col.divs(), S.divs), ...rm(col.roster(), S.roster),
-    ], "Removing event data", progress);
+    await clearEventData(progress);
     await db().remove(paths.event(id));
     // The events subscription then opens the next event, or the "create your first event" screen.
     selectEvent(get().events.find((x) => x.id !== id && clubOf(x) === get().clubId)?.id || null);

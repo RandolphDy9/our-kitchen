@@ -6,7 +6,7 @@ import { switchClub } from "@/lib/session";
 import type { Member } from "@/lib/types";
 import { parseSchedule, readScheduleFile, type Parsed } from "@/lib/schedule";
 import { sampleRows } from "@/lib/sample";
-import { addAdmin, addOwner, createClub, createEvent, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
+import { addAdmin, addOwner, createClub, createEvent, eventDraftProblem, organizerPasswordSignIn, organizerSignOut, removeMember, renameClub, type EventDraft } from "@/lib/actions";
 import { Av } from "../ui";
 import { VenueInput } from "../VenueInput";
 import { ImportNotes, SendSchedule, TEMPLATE_URL, importReady } from "../ImportNotes";
@@ -82,8 +82,7 @@ export function CreateEventPage({ first = false }: { first?: boolean }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const x = { ...d, name: d.name.trim(), venue: d.venue.trim() };
-    const msg = !x.name ? "Give the event a name." : !x.date ? "Pick a date." : !x.start || !x.end ? "Set a start and end time."
-      : x.end <= x.start ? "The end time has to be after the start time." : !(x.courts >= 1 && x.courts <= 40) ? "Courts must be between 1 and 40." : null;
+    const msg = eventDraftProblem(x);
     if (msg) return setErr(msg);
     if (!importReady(parsed, skipOk)) return setErr("Some games couldn't be read. Fix the file, or tick “Import without” above.");
     setErr(null);
