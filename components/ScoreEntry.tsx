@@ -39,8 +39,8 @@ export function ScoreEntry({ id, nameA, nameB, onSave, onCancel, hint, autoFocus
   );
   return (
     <form className="score-entry" noValidate onSubmit={(e) => { e.preventDefault(); if (winner) save(winner); }}>
-      {row("a", nameA, "11")}
-      {row("b", nameB, "7")}
+      {row("a", nameA, "–")}
+      {row("b", nameB, "–")}
       {problem && !blank ? <p className="small score-msg" role="alert">{problem}</p>
         : <p className="small muted">{blank ? hint || "Enter the score, or just tap who won." : "Games go to 11, win by 2."}</p>}
       <div className="row">

@@ -74,7 +74,7 @@ function MyGames() {
               <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span><span>{d.level} · {x.label}</span></div>
               <div className="mg-vs">vs {opp ? teamName(S, opp) : <span className="tbd-ph">{refText(ref)}</span>}</div>
             </div>
-            {x.live ? <span className="pill dark">Live</span> : null}
+            {x.live ? <span className="pill live">Live</span> : null}
           </div>
         );
       }) : <p className="small muted">{doneN ? "You've played all your scheduled games. Playoff games appear here once your spot is decided." : "No upcoming games."}</p>}
@@ -177,7 +177,7 @@ function SRow({ x }: { x: Sched }) {
   if (!d) return null;
   const admin = isAdminView(S), mine = isMineSched(S, x), won = x.res?.w, cn = ev(S)?.courtNames?.[x.court];
   const side = (t: typeof A, ref: Sched["a"], w: boolean) => t ? <span className={w ? "w" : ""}>{teamName(S, t)}</span> : <span className="tbd-ph">{refText(ref)}</span>;
-  const status = x.res ? <span className="pill grey">{scTxt(x.res) || "Final"}</span> : x.live ? <span className="pill dark">Live</span> : null;
+  const status = x.res ? <span className="pill grey sstat">{scTxt(x.res) || "Final"}</span> : x.live ? <span className="pill live sstat">Live</span> : null;
   let acts = null, go = null;
   if (admin) {
     if (x.res) acts = schedLocked(S, x) ? null : <button className="btn sm ghost" onClick={() => undoSched(x.id)}>Undo</button>;
@@ -198,7 +198,7 @@ function SRow({ x }: { x: Sched }) {
     <div className={`srow ${mine ? "me" : ""} ${x.res ? "done" : ""} ${x.live ? "live" : ""}`}>
       <span className="sct"><small>Court</small>{x.court}</span>
       <div className="sbody">
-        <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}</div>
+        <div className="smeta"><span className={`tag ${d.cat}`}>{CAT_SHORT[d.cat]}</span>{cn ? <span className="cname"><Icon n="trophy" />{cn}</span> : null}<span>{d.level} · {x.label}</span>{mine ? <span className="pill dark">You</span> : null}{status}</div>
         <div className="steams">{side(A, x.a, won === "a")}<em>vs</em>{side(B, x.b, won === "b")}</div>
         {admin && x.stale ? <p className="small muted">{STALE_NOTE}</p> : null}
         {go ? <div className="sgo">{go}</div> : null}
@@ -208,7 +208,7 @@ function SRow({ x }: { x: Sched }) {
           </div>
         ) : null}
       </div>
-      {status || acts ? <div className="sact">{status}{acts}</div> : null}
+      {acts ? <div className="sact">{acts}</div> : null}
     </div>
   );
 }

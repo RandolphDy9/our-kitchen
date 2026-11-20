@@ -4,7 +4,7 @@ html,body{margin:0;padding:0}
   --bg:#f5f5ef; --card:#ffffff; --card-2:#ededE6; --ink:#121212; --muted:#7b7b73; --line:#121212; --soft:#dedfd6;
   --lime:#f6b90a; --lime-2:#c4e83c; --lime-ink:#121212;
   --orange:#ffad5c; --black:#121212; --on-black:#ffffff;
-  --ok:#1d8f50; --danger:#d9453b;
+  --ok:#1d8f50; --ok-strong:#167a42; --danger:#d9453b;
   --f-display:"Syne","Arial Black",system-ui,sans-serif;
   --f:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --r-xl:30px; --r-lg:24px; --r:18px; --r-sm:14px;
@@ -169,6 +169,8 @@ details summary{cursor:pointer;font-weight:700;font-size:.88rem}
 .pill svg.i{width:13px;height:13px;stroke-width:2.5}
 .pill.grey{background:var(--card-2);color:var(--muted)}
 .pill.dark{background:var(--black);color:var(--lime)}
+.pill.live{background:var(--ok-strong);color:var(--on-black)}
+.pill.live::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 .pill.orange{background:var(--lime)}
 .chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;padding:2px 10px;border-radius:999px;border:var(--b);background:var(--card);white-space:nowrap}
 .chip svg.i{width:12px;height:12px}
@@ -266,11 +268,13 @@ details summary{cursor:pointer;font-weight:700;font-size:.88rem}
 .court.free .court-head b{color:var(--muted)}
 .teams,.court-meta{display:none}
 .score-form{display:grid;gap:8px;background:var(--card);border:var(--b);border-radius:var(--r);padding:12px}
-.score-row{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:.86rem;font-weight:700}
+.score-row{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:10px;align-items:center;font-size:.9rem;font-weight:700}
 .score-row input{text-align:center;font-family:var(--f-display);font-weight:700;font-size:1.3rem;padding:6px}
 .score-row input.auto{color:var(--muted)}
 .score-row input[aria-invalid="true"]{border-color:var(--danger)}
-.score-entry{display:grid;gap:8px}
+.score-entry{display:grid;gap:10px}
+.score-entry > .row{display:grid;gap:8px;margin-top:2px}
+.score-entry > .row .btn{width:100%}
 .score-msg{color:var(--danger);font-weight:700}
 .queue{display:flex;flex-wrap:wrap;gap:6px}
 
@@ -547,6 +551,7 @@ button.bm{cursor:pointer}
 .srow .sbody{padding:8px 0;min-width:0}
 .smeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .srow.me .smeta{color:var(--ink)}
+.smeta .sstat{margin-left:auto}
 .steams{font-weight:700;font-size:.9rem;display:flex;flex-wrap:wrap;gap:2px 6px;align-items:baseline;margin-top:3px}
 .steams em{font-style:normal;font-size:.72rem;color:var(--muted);font-weight:800;text-transform:uppercase}
 .steams .w{background:var(--ink);color:var(--lime);padding:0 5px}
